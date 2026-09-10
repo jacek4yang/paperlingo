@@ -56,8 +56,8 @@ class Rating(StrEnum):
 
 
 RATING_LABELS: dict[Rating, str] = {
-    Rating.AGAIN: "重来",
+    Rating.AGAIN: "忘记",
     Rating.HARD: "困难",
-    Rating.GOOD: "良好",
-    Rating.EASY: "简单",
+    Rating.GOOD: "记得",
+    Rating.EASY: "熟练",
 }

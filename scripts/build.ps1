@@ -30,6 +30,10 @@ Write-Host "==> 运行测试 (uv run pytest) ..."
 uv run pytest
 if ($LASTEXITCODE -ne 0) { Fail "测试未通过，停止打包" }
 
+Write-Host "==> 运行 Lint (uv run ruff check src tests) ..."
+uv run ruff check src tests
+if ($LASTEXITCODE -ne 0) { Fail "ruff 检查未通过，停止打包" }
+
 Write-Host "==> 清理旧的 build / dist ..."
 if (Test-Path "build") { Remove-Item -Recurse -Force "build" }
 if (Test-Path "dist") { Remove-Item -Recurse -Force "dist" }
