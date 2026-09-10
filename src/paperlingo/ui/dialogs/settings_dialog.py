@@ -112,8 +112,12 @@ class SettingsDialog(QDialog):
         )
         if not path:
             return
-        data = self.repo.export_json()
-        Path(path).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        try:
+            data = self.repo.export_json()
+            Path(path).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        except OSError as e:
+            QMessageBox.critical(self, "导出失败", f"写入文件失败：\n{e}")
+            return
         QMessageBox.information(self, "导出完成", f"已导出到\n{path}")
 
     def _export_csv(self) -> None:
@@ -124,12 +128,16 @@ class SettingsDialog(QDialog):
         )
         if not path:
             return
-        with open(path, "w", newline="", encoding="utf-8-sig") as f:
-            writer = csv.writer(f)
-            writer.writerow(["单词", "词性", "出现次数", "语境含义", "来源论文"])
-            for r in self.repo.list_words(limit=100000):
-                writer.writerow([
-                    r.lemma, r.pos, r.occurrences,
-                    "；".join(r.meanings), "；".join(r.papers),
-                ])
+        try:
+            with open(path, "w", newline="", encoding="utf-8-sig") as f:
+                writer = csv.writer(f)
+                writer.writerow(["单词", "词性", "出现次数", "语境含义", "来源论文"])
+                for r in self.repo.list_words(limit=100000):
+                    writer.writerow([
+                        r.lemma, r.pos, r.occurrences,
+                        "；".join(r.meanings), "；".join(r.papers),
+                    ])
+        except OSError as e:
+            QMessageBox.critical(self, "导出失败", f"写入文件失败：\n{e}")
+            return
         QMessageBox.information(self, "导出完成", f"已导出到\n{path}")

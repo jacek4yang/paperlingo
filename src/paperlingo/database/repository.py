@@ -515,8 +515,11 @@ class Repository:
         ).fetchall()
         result: list[PhraseRow] = []
         for r in rows:
+            # occurrence 表无 created_at，取所属分析的时间
             created = self.db.conn.execute(
-                "SELECT created_at FROM phrase_occurrences WHERE phrase_id = ? ORDER BY id DESC LIMIT 1",
+                "SELECT a.created_at FROM phrase_occurrences o "
+                "JOIN analyses a ON a.id = o.analysis_id "
+                "WHERE o.phrase_id = ? ORDER BY o.id DESC LIMIT 1",
                 (r["phrase_id"],),
             ).fetchone()
             li = self.get_learning_item(ItemType.PHRASE.value, r["phrase_id"])
@@ -543,8 +546,11 @@ class Repository:
         ).fetchall()
         result: list[GrammarRow] = []
         for r in rows:
+            # occurrence 表无 created_at，取所属分析的时间
             created = self.db.conn.execute(
-                "SELECT created_at FROM grammar_occurrences WHERE grammar_id = ? ORDER BY id DESC LIMIT 1",
+                "SELECT a.created_at FROM grammar_occurrences o "
+                "JOIN analyses a ON a.id = o.analysis_id "
+                "WHERE o.grammar_id = ? ORDER BY o.id DESC LIMIT 1",
                 (r["grammar_id"],),
             ).fetchone()
             li = self.get_learning_item(ItemType.GRAMMAR.value, r["grammar_id"])

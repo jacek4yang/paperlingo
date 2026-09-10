@@ -135,3 +135,29 @@ def test_export_json(tmp_path: Path) -> None:
     assert data["app"] == "PaperLingo"
     assert len(data["analyses"]) == 1
     assert any(w["lemma"] == "curate" for w in data["words"])
+
+
+def test_list_phrases_and_grammar_after_ingest(tmp_path: Path) -> None:
+    """回归：list_phrases/list_grammar 曾查询不存在的 created_at 列，
+    知识库页一有短语/语法数据就崩。"""
+    repo = _repo(tmp_path)
+    parsed = _sample_parsed()
+    repo.save_analysis(source_text=parsed["source_text"], parsed=parsed)
+    phrases = repo.list_phrases()
+    assert phrases, "phrases should be ingested"
+    assert all(p.last_seen == "" or len(p.last_seen) >= 8 for p in phrases)
+    grammars = repo.list_grammar()
+    assert grammars, "grammar patterns should be ingested"
+    assert all(g.last_seen == "" or len(g.last_seen) >= 8 for g in grammars)
+
+
+def test_delete_analysis_keeps_learning_items(tmp_path: Path) -> None:
+    """删除 analysis 后，其 occurrences 级联删除，学习条目不受影响。"""
+    repo = _repo(tmp_path)
+    parsed = _sample_parsed()
+    aid = repo.save_analysis(source_text=parsed["source_text"], parsed=parsed)
+    repo.delete_analysis(aid)
+    assert repo.count_analyses() == 0
+    assert repo.db.conn.execute("SELECT COUNT(*) FROM word_occurrences").fetchone()[0] == 0
+    # words / learning_items 保留
+    assert repo.db.conn.execute("SELECT COUNT(*) FROM words").fetchone()[0] > 0

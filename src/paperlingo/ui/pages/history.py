@@ -124,7 +124,7 @@ class HistoryPage(QWidget):
             if len(preview) > 90:
                 preview = preview[:90] + "…"
             star = "★ " if r.is_favorite else ""
-            paper = f"　📄 {r.paper_title}" if r.paper_title else ""
+            paper = f"　{r.paper_title}" if r.paper_title else ""
             item = QListWidgetItem(f"{star}{preview}\n{r.created_at}{paper}　·　{r.analysis_depth}")
             item.setData(Qt.ItemDataRole.UserRole, r.id)
             self.list.addItem(item)
