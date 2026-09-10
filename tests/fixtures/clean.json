@@ -1,0 +1,262 @@
+{
+  "schema_version": "1.0",
+  "source_text": "In this survey, we address this gap through a curated corpus of 247 papers and a lifecycle-based, systems-oriented analytical framework.",
+  "translation": {
+    "natural": "在这篇综述中，我们通过一份经过筛选整理的 247 篇论文语料库，以及一套基于生命周期、面向系统的分析框架，来填补这一研究空白。",
+    "literal": "在这篇综述中，我们通过一个经过策展的 247 篇论文的语料库和一个基于生命周期的、面向系统的分析框架来处理这一缺口。",
+    "core_meaning": "作者想说明：这篇综述用一份精选的 247 篇论文集合，加上一套按系统生命周期组织的分析框架，来补上现有研究没覆盖到的空白。",
+    "translation_notes": [
+      "address this gap 不宜译成「处理缺口」，学术语境中是「填补/回应这一研究空白」。",
+      "curated 不是「被策展的」，而是「经过人工筛选、整理过的」。"
+    ]
+  },
+  "overview": {
+    "difficulty": 4,
+    "difficulty_reason": "长句、并列介词短语、两个复合修饰语叠在一起，中文读者容易把主干和修饰搅在一起。",
+    "sentence_type": "简单句（主谓宾 + 方式状语）",
+    "one_sentence_explanation": "作者用一份精选语料库加一套系统分析框架来填补空白。",
+    "reading_strategy": "先抓住主干 we address this gap，再把 through 后面的两个并列成分当作「用什么来填补」。"
+  },
+  "syntax": {
+    "structure_summary": "主句 + through 引导的方式状语（两个并列名词短语）",
+    "skeleton": "we address this gap through a corpus and a framework",
+    "main_clause": {
+      "subject": "we",
+      "predicate": "address",
+      "object": "this gap",
+      "complement": "",
+      "summary_zh": "我们填补这一空白"
+    },
+    "segments": [
+      {
+        "text": "In this survey",
+        "role": "adverbial",
+        "role_zh": "状语",
+        "explanation": "限定范围：在这篇综述里。"
+      },
+      {
+        "text": "we",
+        "role": "subject",
+        "role_zh": "主语",
+        "explanation": "作者团队。"
+      },
+      {
+        "text": "address",
+        "role": "predicate",
+        "role_zh": "谓语",
+        "explanation": "在学术语境中是「处理/回应/填补」，不是「地址」。"
+      },
+      {
+        "text": "this gap",
+        "role": "object",
+        "role_zh": "宾语",
+        "explanation": "指上文提到的研究空白。"
+      },
+      {
+        "text": "through a curated corpus of 247 papers",
+        "role": "adverbial",
+        "role_zh": "方式状语",
+        "explanation": "填补空白的第一种手段：一份经过筛选的 247 篇论文语料。"
+      },
+      {
+        "text": "a lifecycle-based, systems-oriented analytical framework",
+        "role": "object",
+        "role_zh": "并列宾语",
+        "explanation": "第二种手段：一套基于生命周期、面向系统的分析框架。"
+      }
+    ],
+    "clauses": []
+  },
+  "grammar_points": [
+    {
+      "name": "address + object",
+      "name_zh": "address + 宾语",
+      "source": "we address this gap",
+      "explanation": "address 后面直接跟一个问题/空白/议题，意思是「着手处理、回应」。不要理解成「给……写地址」。这里整体是：we（主语）+ address（谓语）+ this gap（宾语）。",
+      "why_used_here": "论文常用 address a gap / address a challenge 来说明自己的贡献。",
+      "simple_example": "This paper addresses an open problem in distributed systems.",
+      "simple_example_zh": "本文回应分布式系统中的一个开放问题。",
+      "common_mistake": "把 address 当成「地址」或「演讲」，从而读不懂整个句子。",
+      "importance": 5
+    },
+    {
+      "name": "through + noun phrase (means)",
+      "name_zh": "through + 名词短语（表示手段）",
+      "source": "through a curated corpus ... and a ... framework",
+      "explanation": "through 在这里不是「穿过」，而是「通过某种手段」。后面跟两个并列的名词短语，用 and 连接，共同说明「用什么来填补空白」。阅读时可以把 through 整段先括起来，先读完主句。",
+      "why_used_here": "作者想把贡献落到具体的方法上：语料 + 框架。",
+      "simple_example": "We solve this through a simple heuristic.",
+      "simple_example_zh": "我们通过一个简单启发式来解决这个问题。",
+      "common_mistake": "把 through 理解成空间上的「穿过」，导致整句不通。",
+      "importance": 4
+    }
+  ],
+  "words": [
+    {
+      "surface": "survey",
+      "lemma": "survey",
+      "phonetic": "",
+      "pos": "noun",
+      "pos_zh": "名词",
+      "meaning_in_context": "综述（对某一领域文献的系统性回顾）",
+      "common_meanings": ["调查", "测量", "综述"],
+      "academic_meaning": "学术论文中的 survey 通常指综述文章，而不是问卷调查。",
+      "why_here": "In this survey 明确告诉读者这是一篇综述论文。",
+      "collocations": ["literature survey", "this survey"],
+      "difficulty": 3,
+      "worth_learning": true
+    },
+    {
+      "surface": "address",
+      "lemma": "address",
+      "phonetic": "",
+      "pos": "verb",
+      "pos_zh": "动词",
+      "meaning_in_context": "处理、回应、填补（一个研究空白）",
+      "common_meanings": ["地址", "演讲", "处理"],
+      "academic_meaning": "论文里常与 gap / challenge / limitation 搭配，表示着手解决。",
+      "why_here": "与 this gap 搭配，只能理解为「填补空白」。",
+      "collocations": ["address this gap", "address a challenge"],
+      "difficulty": 4,
+      "worth_learning": true
+    },
+    {
+      "surface": "gap",
+      "lemma": "gap",
+      "phonetic": "",
+      "pos": "noun",
+      "pos_zh": "名词",
+      "meaning_in_context": "研究空白（现有工作尚未覆盖的部分）",
+      "common_meanings": ["缺口", "间隙", "差距"],
+      "academic_meaning": "research gap：文献中尚未被充分研究的问题。",
+      "why_here": "this gap 回指前文指出的研究空白。",
+      "collocations": ["research gap", "fill the gap", "address this gap"],
+      "difficulty": 3,
+      "worth_learning": true
+    },
+    {
+      "surface": "curated",
+      "lemma": "curate",
+      "phonetic": "",
+      "pos": "adjective",
+      "pos_zh": "形容词",
+      "meaning_in_context": "经过人工筛选、整理过的",
+      "common_meanings": ["策展", "整理"],
+      "academic_meaning": "在学术语境中通常指经过选择、整理形成的数据或文献集合。",
+      "why_here": "强调这 247 篇论文不是随便搜来的，而是作者筛选整理过的。",
+      "collocations": ["curated corpus", "curated dataset"],
+      "difficulty": 4,
+      "worth_learning": true
+    },
+    {
+      "surface": "corpus",
+      "lemma": "corpus",
+      "phonetic": "",
+      "pos": "noun",
+      "pos_zh": "名词",
+      "meaning_in_context": "语料库 / 文献集合",
+      "common_meanings": ["语料库", "文集"],
+      "academic_meaning": "一组被收集、标注、用于分析的文本或论文集合。",
+      "why_here": "指那 247 篇被选入分析的论文集合。",
+      "collocations": ["curated corpus", "text corpus"],
+      "difficulty": 4,
+      "worth_learning": true
+    },
+    {
+      "surface": "lifecycle-based",
+      "lemma": "lifecycle-based",
+      "phonetic": "",
+      "pos": "adjective",
+      "pos_zh": "形容词",
+      "meaning_in_context": "基于生命周期的（按系统从设计到退役的阶段组织）",
+      "common_meanings": ["基于生命周期的"],
+      "academic_meaning": "分析框架按系统生命周期阶段划分。",
+      "why_here": "说明分析框架的组织方式。",
+      "collocations": ["lifecycle-based approach"],
+      "difficulty": 4,
+      "worth_learning": true
+    },
+    {
+      "surface": "systems-oriented",
+      "lemma": "systems-oriented",
+      "phonetic": "",
+      "pos": "adjective",
+      "pos_zh": "形容词",
+      "meaning_in_context": "面向系统的（从系统整体而非单点技术出发）",
+      "common_meanings": ["面向系统的"],
+      "academic_meaning": "强调从系统视角分析，而不是孤立地看某个算法。",
+      "why_here": "与 lifecycle-based 并列修饰 analytical framework。",
+      "collocations": ["systems-oriented analysis"],
+      "difficulty": 4,
+      "worth_learning": true
+    }
+  ],
+  "phrases": [
+    {
+      "text": "address this gap",
+      "meaning": "填补/回应这一研究空白",
+      "explanation": "论文贡献句的高频搭配。gap 指现有研究没覆盖到的部分。",
+      "academic_usage": "We address this gap by ... / To address this gap, we ...",
+      "example": "We address this gap by proposing a new evaluation protocol.",
+      "example_zh": "我们通过提出一套新的评估协议来填补这一空白。",
+      "worth_learning": true
+    },
+    {
+      "text": "curated corpus",
+      "meaning": "经过筛选整理的语料库",
+      "explanation": "强调数据/文献不是随便收集的，而是经过选择。",
+      "academic_usage": "常用于描述自己构建的数据集或文献集合。",
+      "example": "We release a curated corpus of security papers.",
+      "example_zh": "我们发布了一份经过筛选的安全论文语料库。",
+      "worth_learning": true
+    }
+  ],
+  "academic_expressions": [
+    {
+      "text": "In this survey, we address this gap through ...",
+      "meaning": "在这篇综述中，我们通过……来填补这一空白",
+      "usage": "综述论文开头用来交代贡献的典型句式。",
+      "when_to_use": "写自己的综述或相关工作时，交代「用什么方法填补什么空白」。",
+      "example": "In this survey, we address this gap through a systematic taxonomy.",
+      "example_zh": "在这篇综述中，我们通过一套系统分类来填补这一空白。"
+    }
+  ],
+  "references": [
+    {
+      "expression": "this gap",
+      "refers_to": "前文指出的研究空白（现有综述未能覆盖的部分）",
+      "explanation": "this 回指刚讨论过的那个具体空白，不是泛指任何缺口。"
+    }
+  ],
+  "concepts": [
+    {
+      "term": "analytical framework",
+      "translation": "分析框架",
+      "simple_explanation": "一套用来组织和比较研究对象的结构化视角，而不是一个具体算法。",
+      "meaning_in_this_paper": "作者提出的、按系统生命周期组织、从系统视角出发的分析工具。",
+      "background_needed": false
+    }
+  ],
+  "misunderstandings": [
+    {
+      "wrong_interpretation": "把 address 理解成「地址」，把 gap 理解成「缺口/缝隙」。",
+      "why_wrong": "这是日常英语的第一释义，但在论文贡献句里完全对不上。",
+      "correct_interpretation": "address this gap = 填补这一研究空白。"
+    },
+    {
+      "wrong_interpretation": "把 curated 理解成「被策展的艺术展」。",
+      "why_wrong": "curate 的艺术义被直接搬过来，学术语境里它表示筛选整理。",
+      "correct_interpretation": "a curated corpus = 一份经过人工筛选整理的语料/文献集合。"
+    }
+  ],
+  "reading_tips": [
+    "遇到 through A and B 这种长状语，先读主句 we address this gap，再回头看 A 和 B 分别是什么手段。",
+    "看到 address / account / agent / memory 这类词，先问「它在这篇论文里到底指什么」，不要用日常第一释义硬套。"
+  ],
+  "web_research": {
+    "used": false,
+    "paper_identified": false,
+    "notes": "用户未提供足以定位论文的 DOI 或标题，未联网检索。",
+    "sources": []
+  }
+}

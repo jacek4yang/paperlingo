@@ -1,0 +1,37 @@
+Sure, here is the JSON object you requested. I skipped the code fence as instructed.
+
+{
+  "schema_version": "1.0",
+  "source_text": "Existing studies have shown that defenses are insufficient.",
+  "translation": {
+    "natural": "已有研究表明，现有防御并不充分。",
+    "literal": "现有研究已经表明防御是不充分的。",
+    "core_meaning": "作者在铺垫：现有工作不够，所以本文要推进。",
+    "translation_notes": []
+  },
+  "overview": {
+    "difficulty": 2,
+    "difficulty_reason": "结构简单。",
+    "sentence_type": "主句 + that 从句",
+    "one_sentence_explanation": "已有工作认为防御不够。",
+    "reading_strategy": "先读 Existing studies have shown，再读 that 从句内容。"
+  },
+  "syntax": {
+    "structure_summary": "主句 + that 宾语从句",
+    "skeleton": "studies have shown that defenses are insufficient",
+    "main_clause": {"subject": "Existing studies", "predicate": "have shown", "object": "that defenses are insufficient", "complement": "", "summary_zh": "已有研究表明……"},
+    "segments": [],
+    "clauses": []
+  },
+  "grammar_points": [],
+  "words": [],
+  "phrases": [],
+  "academic_expressions": [],
+  "references": [],
+  "concepts": [],
+  "misunderstandings": [],
+  "reading_tips": [],
+  "web_research": {"used": false, "paper_identified": false, "notes": "", "sources": []}
+}
+
+Let me know if you need anything else.

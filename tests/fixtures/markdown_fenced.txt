@@ -1,0 +1,65 @@
+Here is the analysis you asked for.
+
+```json
+{
+  "schema_version": "1.0",
+  "source_text": "In this survey, we address this gap through a curated corpus of 247 papers and a lifecycle-based, systems-oriented analytical framework.",
+  "translation": {
+    "natural": "在这篇综述中，我们通过一份经过筛选整理的 247 篇论文语料库，以及一套基于生命周期、面向系统的分析框架，来填补这一研究空白。",
+    "literal": "在这篇综述中，我们通过一个经过策展的 247 篇论文的语料库和一个基于生命周期的、面向系统的分析框架来处理这一缺口。",
+    "core_meaning": "作者用一份精选语料库加一套系统分析框架来填补空白。",
+    "translation_notes": []
+  },
+  "overview": {
+    "difficulty": 4,
+    "difficulty_reason": "长句。",
+    "sentence_type": "简单句",
+    "one_sentence_explanation": "作者用语料和框架填补空白。",
+    "reading_strategy": "先读主干。"
+  },
+  "syntax": {
+    "structure_summary": "主句 + 方式状语",
+    "skeleton": "we address this gap",
+    "main_clause": {
+      "subject": "we",
+      "predicate": "address",
+      "object": "this gap",
+      "complement": "",
+      "summary_zh": "我们填补空白"
+    },
+    "segments": [],
+    "clauses": []
+  },
+  "grammar_points": [],
+  "words": [
+    {
+      "surface": "curated",
+      "lemma": "curate",
+      "phonetic": "",
+      "pos": "adjective",
+      "pos_zh": "形容词",
+      "meaning_in_context": "经过筛选整理的",
+      "common_meanings": ["策展"],
+      "academic_meaning": "",
+      "why_here": "",
+      "collocations": ["curated corpus"],
+      "difficulty": 4,
+      "worth_learning": true
+    }
+  ],
+  "phrases": [],
+  "academic_expressions": [],
+  "references": [],
+  "concepts": [],
+  "misunderstandings": [],
+  "reading_tips": [],
+  "web_research": {
+    "used": false,
+    "paper_identified": false,
+    "notes": "",
+    "sources": []
+  }
+}
+```
+
+Hope this helps!

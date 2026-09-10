@@ -1,0 +1,26 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.pytest_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv
+venv/
+
+# 用户数据（数据库等，不进仓库）
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+user_data/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
