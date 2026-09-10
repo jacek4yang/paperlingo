@@ -9,6 +9,7 @@ from paperlingo.prompt.profiles import DEFAULT_PROFILE_ID, get_profile
 from paperlingo.prompt.templates import (
     _CONTEXT_NEXT,
     _CONTEXT_PREV,
+    _PROFILE_HEADER,
     _WEB_RESEARCH_NO_INFO,
     _WEB_RESEARCH_WITH_INFO,
     DEFAULT_TEMPLATE_ID,
@@ -120,12 +121,19 @@ class PromptCompiler:
             _WEB_RESEARCH_WITH_INFO if has_paper_info else _WEB_RESEARCH_NO_INFO
         ).strip()
 
+        # 学习者画像：仅在收集到足够的薄弱点信息时才加入 Prompt
+        profile_text = req.known_knowledge_profile.strip()
+        knowledge_profile_block = (
+            f"{_PROFILE_HEADER}\n{profile_text}" if profile_text else ""
+        )
+
         return {
             "domain_role": _DOMAIN_ROLES.get(req.domain, _DOMAIN_ROLES["自动判断"]),
             "web_research_instruction": web_instruction,
             "source_text": req.source_text,
             "context_block": context_block,
             "paper_info_lines": paper_info_lines,
+            "knowledge_profile_block": knowledge_profile_block,
             "depth_instruction": DEPTH_INSTRUCTIONS[req.analysis_depth].strip(),
             "schema_version": SCHEMA_VERSION,
             "schema_description": SCHEMA_DESCRIPTION.strip(),

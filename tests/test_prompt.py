@@ -58,6 +58,19 @@ def test_context_included() -> None:
     assert "NEXT_CTX_UNIQUE" in compiled.text
 
 
+def test_knowledge_profile_included_when_present() -> None:
+    compiled = PromptCompiler().compile(
+        _req(known_knowledge_profile="单词 3 个待掌握")
+    )
+    assert "学习者画像" in compiled.text
+    assert "单词 3 个待掌握" in compiled.text
+
+
+def test_knowledge_profile_omitted_when_empty() -> None:
+    compiled = PromptCompiler().compile(_req())
+    assert "学习者画像" not in compiled.text
+
+
 def test_depth_changes_instruction() -> None:
     quick = PromptCompiler().compile(_req(analysis_depth="quick")).text
     deep = PromptCompiler().compile(_req(analysis_depth="deep")).text

@@ -93,10 +93,7 @@ _PAPER_INFO = """\
 {paper_info_lines}
 """
 
-_PROFILE = """\
-【学习者画像（仅供参考，不得因此跳过核心结构分析）】
-{knowledge_profile}
-"""
+_PROFILE_HEADER = "【学习者画像（仅供参考，不得因此跳过核心结构分析）】"
 
 _TASK = """\
 【任务】
@@ -275,6 +272,7 @@ TEMPLATES: dict[str, PromptTemplate] = {
             _WEB_RESEARCH,
             _CONTEXT,
             _PAPER_INFO,
+            "{knowledge_profile_block}",
             _TASK,
             "{depth_instruction}",
             _OUTPUT,
@@ -286,6 +284,7 @@ TEMPLATES: dict[str, PromptTemplate] = {
                 "source_text",
                 "context_block",
                 "paper_info_lines",
+                "knowledge_profile_block",
                 "depth_instruction",
                 "schema_version",
                 "schema_description",
