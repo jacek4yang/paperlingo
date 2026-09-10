@@ -17,6 +17,7 @@ from paperlingo.ui.widgets.common import (
     ReferenceCard,
     TranslationCard,
     WordCard,
+    _plain,
 )
 from paperlingo.ui.widgets.sentence import InteractiveSentenceWidget
 from paperlingo.ui.widgets.structure import StructureView
@@ -69,7 +70,7 @@ class ResultView(QScrollArea):
             tips = Card("阅读建议")
             for tip in a.reading_tips[:5]:
                 if tip.strip():
-                    lbl = QLabel("· " + tip)
+                    lbl = _plain(QLabel("· " + tip))
                     lbl.setWordWrap(True)
                     lbl.setProperty("role", "secondary")
                     tips.body().addWidget(lbl)
@@ -83,7 +84,7 @@ class ResultView(QScrollArea):
             a.syntax.main_clause.subject or a.syntax.main_clause.predicate
         ):
             struct = Card("句子结构")
-            summary = QLabel(a.syntax.structure_summary)
+            summary = _plain(QLabel(a.syntax.structure_summary))
             summary.setWordWrap(True)
             summary.setProperty("role", "secondary")
             if a.syntax.structure_summary:
@@ -201,10 +202,10 @@ class ResultView(QScrollArea):
         wr = a.web_research
         if wr.used:
             src_txt = "、".join(s.title or s.url for s in wr.sources[:3])
-            note = QLabel(
-                f"🌐 AI 联网核实了论文信息{'：' + src_txt if src_txt else ''}"
+            note = _plain(QLabel(
+                f"AI 联网核实了论文信息{'：' + src_txt if src_txt else ''}"
                 + (f"　{wr.notes}" if wr.notes else "")
-            )
+            ))
             note.setWordWrap(True)
             note.setProperty("role", "tertiary")
             self._v.addWidget(note)

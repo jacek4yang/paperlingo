@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 from paperlingo.database.repository import Repository
 from paperlingo.domain.learning import ITEM_TYPE_LABELS, RATING_LABELS, ItemType, Rating
 from paperlingo.learning.review import review_item
-from paperlingo.ui.widgets.common import EmptyState
+from paperlingo.ui.widgets.common import EmptyState, _plain
 
 _TYPE_ORDER = {ItemType.WORD.value: 0, ItemType.PHRASE.value: 1, ItemType.GRAMMAR.value: 2,
                ItemType.EXPRESSION.value: 3, ItemType.CONCEPT.value: 4}
@@ -68,18 +68,18 @@ class ReviewPage(QWidget):
         self._card_area.setWidget(card_inner)
         v.addWidget(self._card_area, 1)
 
-        # 类型标签 + 正面
-        self._type_label = QLabel()
+        # 类型标签 + 正面（内容来自数据库/AI，强制纯文本渲染）
+        self._type_label = _plain(QLabel())
         self._type_label.setProperty("role", "tertiary")
         self._card_v.addWidget(self._type_label)
 
-        self._front = QLabel()
+        self._front = _plain(QLabel())
         self._front.setWordWrap(True)
         self._front.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self._front.setStyleSheet("font-size: 22px; font-weight: 600;")
         self._card_v.addWidget(self._front)
 
-        self._back = QLabel()
+        self._back = _plain(QLabel())
         self._back.setWordWrap(True)
         self._back.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self._back.setStyleSheet("font-size: 15px;")

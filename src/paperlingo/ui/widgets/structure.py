@@ -6,6 +6,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from paperlingo.domain.analysis import Syntax
+from paperlingo.ui.widgets.common import _plain
 
 _ROLE_COLORS = {
     "subject": "role_subject",
@@ -35,12 +36,12 @@ class _SegmentChip(QFrame):
         lay = QVBoxLayout(self)
         lay.setContentsMargins(10, 6, 10, 6)
         lay.setSpacing(2)
-        t = QLabel(text)
+        t = _plain(QLabel(text))
         t.setWordWrap(True)
         t.setAlignment(Qt.AlignmentFlag.AlignCenter)
         t.setStyleSheet(f"color: {color}; font-weight: 600; font-size: 13px; background: transparent;")
         lay.addWidget(t)
-        r = QLabel(role_zh)
+        r = _plain(QLabel(role_zh))
         r.setAlignment(Qt.AlignmentFlag.AlignCenter)
         r.setStyleSheet(
             f"color: {color}; font-size: 11px; background: transparent;"
@@ -99,7 +100,7 @@ class StructureView(QWidget):
             flow.addStretch(1)
             rv.addLayout(flow)
             if mc.summary_zh:
-                s = QLabel(mc.summary_zh)
+                s = _plain(QLabel(mc.summary_zh))
                 s.setWordWrap(True)
                 s.setProperty("role", "secondary")
                 rv.addWidget(s)
@@ -148,25 +149,25 @@ class StructureView(QWidget):
                 item = QVBoxLayout()
                 item.setSpacing(2)
                 top_row = QHBoxLayout()
-                type_lbl = QLabel(c.type_zh or c.type)
+                type_lbl = _plain(QLabel(c.type_zh or c.type))
                 type_lbl.setStyleSheet(
                     f"color: {p.role_clause}; font-weight: 600; font-size: 12px;"
                     "background: transparent;"
                 )
                 top_row.addWidget(type_lbl)
                 if c.modifies:
-                    mod = QLabel(f"修饰：{c.modifies}")
+                    mod = _plain(QLabel(f"修饰：{c.modifies}"))
                     mod.setProperty("role", "tertiary")
                     mod.setWordWrap(True)
                     top_row.addWidget(mod)
                     top_row.addStretch(1)
                 item.addLayout(top_row)
-                text_lbl = QLabel(c.text)
+                text_lbl = _plain(QLabel(c.text))
                 text_lbl.setWordWrap(True)
                 text_lbl.setStyleSheet("font-family: 'Segoe UI'; background: transparent;")
                 item.addWidget(text_lbl)
                 if c.explanation:
-                    exp = QLabel(c.explanation)
+                    exp = _plain(QLabel(c.explanation))
                     exp.setWordWrap(True)
                     exp.setProperty("role", "secondary")
                     item.addWidget(exp)

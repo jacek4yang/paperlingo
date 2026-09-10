@@ -58,3 +58,16 @@ def test_qss_builds_for_both_themes() -> None:
     assert "QPushButton" in light
     assert "QPushButton" in dark
     assert light != dark
+
+
+def test_ai_text_rendered_as_plain_text(qtbot) -> None:
+    """AI 内容含 HTML 标签时必须按纯文本渲染，不得被解释为富文本。"""
+    from PyQt6.QtCore import Qt
+
+    from paperlingo.ui.widgets.common import _flow_text_label
+
+    malicious = '<img src="http://x/y.png"><b>bold</b><script>alert(1)</script>'
+    lbl = _flow_text_label(malicious)
+    qtbot.addWidget(lbl)
+    assert lbl.textFormat() == Qt.TextFormat.PlainText
+    assert lbl.text() == malicious  # 文本原样保留，未被解释

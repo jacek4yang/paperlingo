@@ -43,8 +43,18 @@ class Card(QFrame):
         return self._v
 
 
+def _plain(lbl: QLabel) -> QLabel:
+    """强制 QLabel 按纯文本渲染。
+
+    QLabel 默认自动检测富文本：AI 返回内容若含 <img>/<b>/<style> 等
+    标签会被解释执行。所有展示 AI/用户数据的标签都必须经过这里。
+    """
+    lbl.setTextFormat(Qt.TextFormat.PlainText)
+    return lbl
+
+
 def _flow_text_label(text: str, role: str = "") -> QLabel:
-    lbl = QLabel(text)
+    lbl = _plain(QLabel(text))
     lbl.setWordWrap(True)
     lbl.setTextInteractionFlags(
         Qt.TextInteractionFlag.TextSelectableByMouse | Qt.TextInteractionFlag.LinksAccessibleByMouse
@@ -88,7 +98,7 @@ class OverviewCard(Card):
         )
         top.addWidget(badge)
         if overview.sentence_type:
-            st = QLabel(overview.sentence_type)
+            st = _plain(QLabel(overview.sentence_type))
             st.setProperty("role", "tertiary")
             top.addWidget(st)
         top.addStretch(1)
@@ -112,11 +122,11 @@ class GrammarCard(Card):
         title = g.name_zh or g.name
         super().__init__(title, parent)
         if g.name and g.name_zh and g.name != g.name_zh:
-            en = QLabel(g.name)
+            en = _plain(QLabel(g.name))
             en.setProperty("role", "tertiary")
             self._v.addWidget(en)
         if g.source:
-            src = QLabel(g.source)
+            src = _plain(QLabel(g.source))
             src.setWordWrap(True)
             src.setStyleSheet(
                 "font-family: 'Segoe UI', 'Cascadia Code', monospace; font-size: 12px;"
@@ -152,12 +162,12 @@ class WordCard(Card):
                  on_learn: Callable[[str, str, QWidget], None] | None = None) -> None:
         lemma = w.lemma or w.surface
         super().__init__(f"{w.surface or lemma}", parent)
-        sub = QLabel(" · ".join(x for x in [w.lemma if w.lemma != w.surface else "", w.pos_zh or w.pos] if x))
+        sub = _plain(QLabel(" · ".join(x for x in [w.lemma if w.lemma != w.surface else "", w.pos_zh or w.pos] if x)))
         if sub.text():
             sub.setProperty("role", "tertiary")
             self._v.addWidget(sub)
         if w.phonetic:
-            ph = QLabel(w.phonetic)
+            ph = _plain(QLabel(w.phonetic))
             ph.setProperty("role", "tertiary")
             self._v.addWidget(ph)
         if w.meaning_in_context:
@@ -243,7 +253,7 @@ class AcademicExpressionCard(Card):
         if e.when_to_use:
             self._v.addWidget(_flow_text_label(f"什么时候用：{e.when_to_use}", "tertiary"))
         if e.example:
-            ex = QLabel(e.example + (f"　{e.example_zh}" if e.example_zh else ""))
+            ex = _plain(QLabel(e.example + (f"　{e.example_zh}" if e.example_zh else "")))
             ex.setWordWrap(True)
             ex.setProperty("role", "tertiary")
             self._v.addWidget(ex)
@@ -254,11 +264,11 @@ class ReferenceCard(Card):
         super().__init__("指代关系", parent)
         flow = QHBoxLayout()
         flow.setSpacing(10)
-        expr = QLabel(r.expression)
+        expr = _plain(QLabel(r.expression))
         expr.setStyleSheet("font-family: 'Segoe UI'; font-weight: 600;")
         arrow = QLabel("↓")
         arrow.setProperty("role", "tertiary")
-        refers = QLabel(r.refers_to)
+        refers = _plain(QLabel(r.refers_to))
         refers.setWordWrap(True)
         for w_ in (expr, arrow, refers):
             flow.addWidget(w_)
@@ -416,7 +426,7 @@ class ErrorState(QWidget):
         t.setProperty("role", "title")
         v.addWidget(t)
         if detail:
-            d = QLabel(detail)
+            d = _plain(QLabel(detail))
             d.setAlignment(Qt.AlignmentFlag.AlignCenter)
             d.setProperty("role", "secondary")
             d.setWordWrap(True)
