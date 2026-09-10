@@ -24,3 +24,6 @@ user_data/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# 日志
+*.log
