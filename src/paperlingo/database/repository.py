@@ -1,6 +1,7 @@
-"""数据访问层：分析历史、知识条目、设置、复习的 CRUD。
+"""Data access layer: analyses, knowledge items, settings, drafts, review CRUD.
 
-所有 SQL 均为参数化查询；UI 层不直接接触 SQL。
+All SQL is parameterized. The UI layer never touches SQL directly — it calls the
+semantic methods on this class.
 """
 
 from __future__ import annotations
@@ -10,6 +11,8 @@ import logging
 import sqlite3
 from dataclasses import dataclass, field
 from typing import Any
+
+from pydantic import ValidationError
 
 from paperlingo.database.db import Database
 from paperlingo.domain.analysis import PaperAnalysis
@@ -115,6 +118,10 @@ def _analysis_from_parsed(parsed: dict) -> PaperAnalysis:
 class Repository:
     def __init__(self, db: Database) -> None:
         self.db = db
+        #: Last knowledge-ingestion error message, surfaced to callers so that
+        #: an ingestion failure is never silently swallowed (analysis row is
+        #: still saved; see save_analysis for the atomic strategy).
+        self.last_ingest_error: str | None = None
 
     # ------------------------------------------------------------------
     # settings
@@ -140,8 +147,10 @@ class Repository:
     # ------------------------------------------------------------------
     # papers
 
-    def upsert_paper(self, title: str, doi_or_url: str = "", authors: str = "", domain: str = "") -> int | None:
-        """按标题（或 URL）去重；无有效信息返回 None。"""
+    def _upsert_paper(self, title: str, doi_or_url: str = "", authors: str = "", domain: str = "") -> int | None:
+        """Deduplicate by title (or URL); return None when no usable info.
+
+        Runs inside the caller's transaction (no inner commit)."""
         title = title.strip()
         doi_or_url = doi_or_url.strip()
         if not title and not doi_or_url:
@@ -163,13 +172,11 @@ class Repository:
                 "UPDATE papers SET updated_at = datetime('now','localtime') WHERE id = ?",
                 (pid,),
             )
-            conn.commit()
             return pid
         cur = conn.execute(
             "INSERT INTO papers(title, doi_or_url, authors, domain) VALUES(?,?,?,?)",
             (title, doi_or_url, authors.strip(), domain),
         )
-        conn.commit()
         return int(cur.lastrowid)
 
     def get_paper(self, paper_id: int) -> dict[str, Any] | None:
@@ -178,6 +185,13 @@ class Repository:
 
     # ------------------------------------------------------------------
     # analyses
+    #
+    # Atomicity strategy (documented; see AGENTS.md database contract):
+    # saving an analysis (paper upsert + analysis row + knowledge ingestion)
+    # runs inside one explicit transaction. If knowledge ingestion fails, only
+    # the ingestion part is rolled back (SAVEPOINT) so the parsed analysis is
+    # never lost; the error is logged and recorded in `last_ingest_error`.
+    # Any other failure rolls back the whole transaction and re-raises.
 
     def save_analysis(
         self,
@@ -197,57 +211,78 @@ class Repository:
         parsed: dict | None = None,
         status: str = "parsed",
     ) -> int:
-        """保存一次分析（含原始 response），并把知识点沉淀进知识库。"""
+        """Save one analysis (including the raw response) and accumulate its
+        knowledge items into the knowledge base, atomically."""
         conn = self.db.conn
-        paper_id = self.upsert_paper(paper_title, paper_doi_or_url, paper_authors, paper_domain)
+        self.last_ingest_error = None
         parsed_json = json.dumps(parsed, ensure_ascii=False) if parsed else ""
         schema_version = str(parsed.get("schema_version", "")) if parsed else ""
-        cur = conn.execute(
-            """
-            INSERT INTO analyses(
-                paper_id, source_text, previous_context, following_context,
-                analysis_depth, profile_id, prompt_text, prompt_version,
-                raw_response, parsed_json, schema_version, status
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
-            """,
-            (
-                paper_id, source_text, previous_context, following_context,
-                analysis_depth, profile_id, prompt_text, prompt_version,
-                raw_response, parsed_json, schema_version, status,
-            ),
-        )
-        analysis_id = int(cur.lastrowid)
-        if parsed is not None and status == "parsed":
-            self._safe_ingest(analysis_id, parsed)
-        conn.commit()
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            paper_id = self._upsert_paper(paper_title, paper_doi_or_url, paper_authors, paper_domain)
+            cur = conn.execute(
+                """
+                INSERT INTO analyses(
+                    paper_id, source_text, previous_context, following_context,
+                    analysis_depth, profile_id, prompt_text, prompt_version,
+                    raw_response, parsed_json, schema_version, status
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    paper_id, source_text, previous_context, following_context,
+                    analysis_depth, profile_id, prompt_text, prompt_version,
+                    raw_response, parsed_json, schema_version, status,
+                ),
+            )
+            analysis_id = int(cur.lastrowid)
+            if parsed is not None and status == "parsed":
+                self._ingest_guarded(analysis_id, parsed)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
         return analysis_id
 
     def update_analysis_response(self, analysis_id: int, raw_response: str, parsed: dict | None) -> None:
         conn = self.db.conn
+        self.last_ingest_error = None
         parsed_json = json.dumps(parsed, ensure_ascii=False) if parsed else ""
         schema_version = str(parsed.get("schema_version", "")) if parsed else ""
-        status = "parsed" if parsed else "parse_failed"
-        conn.execute(
-            "UPDATE analyses SET raw_response = ?, parsed_json = ?, schema_version = ?, "
-            "status = ?, updated_at = datetime('now','localtime') WHERE id = ?",
-            (raw_response, parsed_json, schema_version, status, analysis_id),
-        )
-        if parsed is not None:
-            self._safe_ingest(analysis_id, parsed)
-        conn.commit()
+        new_status = "parsed" if parsed else "parse_failed"
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute(
+                "UPDATE analyses SET raw_response = ?, parsed_json = ?, schema_version = ?, "
+                "status = ?, updated_at = datetime('now','localtime') WHERE id = ?",
+                (raw_response, parsed_json, schema_version, new_status, analysis_id),
+            )
+            if parsed is not None:
+                self._ingest_guarded(analysis_id, parsed)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
     # ------------------------------------------------------------------
-    # 知识沉淀：把 PaperAnalysis 的内容写入各知识表
+    # Knowledge accumulation: write the PaperAnalysis content into the
+    # knowledge tables.
 
-    def _safe_ingest(self, analysis_id: int, parsed: dict) -> None:
-        """沉淀进知识库；失败时回滚沉淀部分并记录日志，分析主记录不受影响。"""
+    def _ingest_guarded(self, analysis_id: int, parsed: dict) -> None:
+        """Run ingestion inside a SAVEPOINT so an ingestion failure rolls back
+        only the knowledge writes (the analysis row itself stays), and record
+        the failure explicitly instead of swallowing it."""
         conn = self.db.conn
         conn.execute("SAVEPOINT ingest_sp")
         try:
             self._ingest(analysis_id, _analysis_from_parsed(parsed))
-        except Exception:
+        except Exception as e:
             conn.execute("ROLLBACK TO ingest_sp")
-            logger.exception("知识库沉淀失败（analysis_id=%s），已回滚该部分写入", analysis_id)
+            self.last_ingest_error = f"{type(e).__name__}: {e}"
+            logger.exception(
+                "knowledge ingestion failed (analysis_id=%s); knowledge writes "
+                "rolled back, analysis row kept",
+                analysis_id,
+            )
         finally:
             conn.execute("RELEASE ingest_sp")
 
@@ -440,18 +475,24 @@ class Repository:
         return [dict(r) for r in rows]
 
     def load_parsed_analysis(self, analysis_id: int) -> tuple[PaperAnalysis, dict[str, Any]] | None:
-        """恢复一次完整分析（用于历史记录点击后重建 UI）。"""
+        """Restore one complete analysis (used to rebuild the result UI from
+        history without another model call)."""
         data = self.get_analysis(analysis_id)
         if not data or not data["parsed_json"]:
             return None
         try:
             parsed = json.loads(data["parsed_json"])
             return _analysis_from_parsed(parsed), data
-        except Exception:
+        except (json.JSONDecodeError, ValueError, ValidationError, TypeError):
+            logger.warning(
+                "stored analysis %s could not be re-validated; treating as missing",
+                analysis_id,
+                exc_info=True,
+            )
             return None
 
     # ------------------------------------------------------------------
-    # 知识库查询
+    # Knowledge-base queries
 
     def list_words(self, search: str = "", offset: int = 0, limit: int = PAGE_SIZE) -> list[WordRow]:
         sql = """
@@ -471,7 +512,7 @@ class Repository:
             meanings = [m for m in (r["meanings"] or "").split("；") if m]
             papers_rows = self.db.conn.execute(
                 """
-                SELECT DISTINCT COALESCE(p.title, '未命名论文') AS t
+                SELECT DISTINCT COALESCE(p.title, '') AS t
                 FROM word_occurrences o
                 JOIN analyses a ON a.id = o.analysis_id
                 LEFT JOIN papers p ON p.id = a.paper_id
@@ -485,7 +526,7 @@ class Repository:
                     word_id=r["word_id"], lemma=r["lemma"], pos=r["pos"],
                     occurrences=r["occurrences"], analyses_count=r["analyses_count"],
                     meanings=meanings[:4],
-                    papers=[pr["t"] for pr in papers_rows],
+                    papers=[pr["t"] for pr in papers_rows if pr["t"]],
                     status=li["status"] if li else "unknown",
                 )
             )
@@ -621,7 +662,111 @@ class Repository:
         return [dict(r) for r in rows]
 
     # ------------------------------------------------------------------
-    # learning items / 复习
+    # Knowledge detail getters (semantic methods for the UI; no raw SQL in UI)
+
+    def get_phrase_detail(self, phrase_id: int) -> dict[str, Any] | None:
+        conn = self.db.conn
+        main = conn.execute("SELECT text FROM phrases WHERE id = ?", (phrase_id,)).fetchone()
+        if not main:
+            return None
+        rows = conn.execute(
+            "SELECT meaning, explanation, academic_usage, example, example_zh, worth_learning "
+            "FROM phrase_occurrences WHERE phrase_id = ? ORDER BY id DESC",
+            (phrase_id,),
+        ).fetchall()
+        return {"text": main["text"], "occurrences": [dict(r) for r in rows]}
+
+    def get_grammar_detail(self, grammar_id: int) -> dict[str, Any] | None:
+        conn = self.db.conn
+        main = conn.execute(
+            "SELECT name, name_zh FROM grammar_patterns WHERE id = ?", (grammar_id,)
+        ).fetchone()
+        if not main:
+            return None
+        rows = conn.execute(
+            "SELECT source, explanation, why_used_here, simple_example, simple_example_zh, "
+            "common_mistake, importance FROM grammar_occurrences WHERE grammar_id = ? "
+            "ORDER BY id DESC",
+            (grammar_id,),
+        ).fetchall()
+        return {
+            "name": main["name"],
+            "name_zh": main["name_zh"],
+            "occurrences": [dict(r) for r in rows],
+        }
+
+    def get_expression_detail(self, expr_id: int) -> dict[str, Any] | None:
+        row = self.db.conn.execute(
+            "SELECT text, meaning, usage, when_to_use, example, example_zh, last_analysis_id "
+            "FROM academic_expressions WHERE id = ?",
+            (expr_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def get_concept_detail(self, concept_id: int) -> dict[str, Any] | None:
+        row = self.db.conn.execute(
+            "SELECT term, translation, simple_explanation, meaning_in_this_paper, "
+            "background_needed, last_analysis_id FROM concepts WHERE id = ?",
+            (concept_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def get_sentence_pattern(self, pattern_id: int) -> dict[str, Any] | None:
+        row = self.db.conn.execute(
+            "SELECT id, structure_summary, skeleton, last_analysis_id "
+            "FROM sentence_patterns WHERE id = ?",
+            (pattern_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def find_knowledge_item_id(self, item_type: str, key: str) -> int | None:
+        """Look up a knowledge item id by its identity key.
+
+        Words are keyed by lemma (case-insensitive); phrases by exact text.
+        Returns None when no matching item exists.
+        """
+        if item_type == ItemType.WORD.value:
+            row = self.db.conn.execute(
+                "SELECT id FROM words WHERE LOWER(lemma) = LOWER(?)", (key,)
+            ).fetchone()
+        elif item_type == ItemType.PHRASE.value:
+            row = self.db.conn.execute(
+                "SELECT id FROM phrases WHERE text = ?", (key,)
+            ).fetchone()
+        else:
+            return None
+        return int(row["id"]) if row else None
+
+    def get_word_occurrence_count(self, word_id: int) -> int:
+        row = self.db.conn.execute(
+            "SELECT COUNT(*) FROM word_occurrences WHERE word_id = ?", (word_id,)
+        ).fetchone()
+        return int(row[0])
+
+    # ------------------------------------------------------------------
+    # drafts (unfinished reading state, SQLite-backed for portability)
+
+    def save_draft(self, payload_json: str) -> None:
+        self.db.conn.execute(
+            """
+            INSERT INTO drafts(id, payload, updated_at) VALUES(1, ?, datetime('now','localtime'))
+            ON CONFLICT(id) DO UPDATE SET
+                payload = excluded.payload, updated_at = excluded.updated_at
+            """,
+            (payload_json,),
+        )
+        self.db.conn.commit()
+
+    def load_draft(self) -> str | None:
+        row = self.db.conn.execute("SELECT payload FROM drafts WHERE id = 1").fetchone()
+        return row["payload"] if row else None
+
+    def clear_draft(self) -> None:
+        self.db.conn.execute("DELETE FROM drafts WHERE id = 1")
+        self.db.conn.commit()
+
+    # ------------------------------------------------------------------
+    # learning items / review
 
     def get_learning_item(self, item_type: str, ref_id: int) -> sqlite3.Row | None:
         return self.db.conn.execute(
@@ -630,7 +775,7 @@ class Repository:
         ).fetchone()
 
     def set_mastery(self, item_type: str, ref_id: int, status: MasteryStatus) -> None:
-        """设置掌握状态；不熟/不会自动加入学习队列（明天到期）。"""
+        """Set mastery status; unfamiliar/hard enter the review queue (due tomorrow)."""
         conn = self.db.conn
         existing = self.get_learning_item(item_type, ref_id)
         if existing is None:
@@ -657,7 +802,7 @@ class Repository:
         conn.commit()
 
     def due_items(self, limit: int = 20) -> list[ReviewItem]:
-        """获取到期复习项（不熟/不会且已到期）。"""
+        """Due review items (unfamiliar/hard and past due)."""
         rows = self.db.conn.execute(
             """
             SELECT li.id, li.item_type, li.ref_id, li.due_at, li.reps
@@ -720,8 +865,23 @@ class Repository:
             return (row["term"], row["translation"]) if row else (None, "")
         return None, ""
 
+    def get_card_state(self, learning_item_id: int) -> dict[str, Any] | None:
+        """Scheduling state of one learning item (consumed by the Scheduler)."""
+        row = self.db.conn.execute(
+            "SELECT stability, difficulty, reps, lapses FROM learning_items WHERE id = ?",
+            (learning_item_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "stability": float(row["stability"] or 0.0),
+            "difficulty": float(row["difficulty"] or 0.0),
+            "reps": int(row["reps"] or 0),
+            "lapses": int(row["lapses"] or 0),
+        }
+
     def log_review(self, learning_item_id: int, rating: Rating, scheduler_result: dict[str, Any]) -> None:
-        """记录复习日志，并把调度结果写回 learning_items。"""
+        """Persist a review log and write the scheduler result back to learning_items."""
         conn = self.db.conn
         conn.execute(
             "INSERT INTO review_logs(learning_item_id, rating) VALUES(?,?)",
@@ -746,7 +906,7 @@ class Repository:
         conn.commit()
 
     # ------------------------------------------------------------------
-    # 导出
+    # export
 
     def export_json(self) -> dict[str, Any]:
         conn = self.db.conn
@@ -779,7 +939,7 @@ class Repository:
         }
 
     # ------------------------------------------------------------------
-    # 统计（学习画像）
+    # statistics (learner profile)
 
     def knowledge_stats(self) -> dict[str, int]:
         conn = self.db.conn

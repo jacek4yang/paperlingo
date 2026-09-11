@@ -1,4 +1,5 @@
-"""知识库页：单词 / 短语 / 语法 / 学术表达 / 概念 五个标签 + 句型。"""
+"""Knowledge-base page: words / phrases / grammar / expressions / concepts tabs
+plus sentence patterns."""
 
 from __future__ import annotations
 
@@ -170,9 +171,11 @@ class KnowledgePage(QWidget):
 
 
 class _DetailDialog(QDialog):
-    """条目详情。所有进入 HTML 的内容（来自 AI / 数据库）都必须 escape。"""
+    """Item detail dialog. Every string entering the HTML (AI / database
+    content) must be escaped."""
 
-    #: 详情对话框顶部说明各类别的定位差异，避免"短语/语法/学术表达"看起来重复
+    #: Per-kind hint at the top of the dialog, clarifying what each category
+    #: is for (avoids phrase/grammar/expression looking redundant).
     _KIND_HINTS: ClassVar[dict[str, str]] = {
         "word": "这个词在论文里的意思和用法",
         "phrase": "值得整组记忆的词组搭配",
@@ -193,10 +196,10 @@ class _DetailDialog(QDialog):
         v = QVBoxLayout(self)
         self._browser = QTextBrowser()
         self._browser.setFrameShape(QTextBrowser.Shape.NoFrame)
-        self._browser.setOpenLinks(False)  # 不当浏览器用：不自动打开链接
+        self._browser.setOpenLinks(False)  # not a browser: never auto-open links
         v.addWidget(self._browser, 1)
 
-        # 掌握状态按钮（句型除外）
+        # Mastery-status buttons (not for sentence patterns)
         self._status_row = QHBoxLayout()
         v.addLayout(self._status_row)
         close = QPushButton("关闭")
@@ -206,15 +209,15 @@ class _DetailDialog(QDialog):
         row.addWidget(close)
         v.addLayout(row)
 
-        item_type_map = {"word": "word", "phrase": "phrase", "grammar": "grammar",
-                         "expression": "expression", "concept": "concept"}
+        self._item_type = kind if kind in ("word", "phrase", "grammar", "expression", "concept") else None
+        self._ref_id = ref_id
         self._render(kind, ref_id)
-        if kind in item_type_map:
-            li = repo.get_learning_item(item_type_map[kind], ref_id)
+        if self._item_type:
+            li = repo.get_learning_item(self._item_type, ref_id)
             current = MasteryStatus(li["status"]) if li else MasteryStatus.UNKNOWN
 
             def on_change(s: MasteryStatus) -> None:
-                repo.set_mastery(item_type_map[kind], ref_id, s)
+                repo.set_mastery(self._item_type, self._ref_id, s)  # type: ignore[arg-type]
 
             self._status_row.addWidget(QLabel("掌握程度"))
             self._status_row.addWidget(LearningStatusButtons(current, on_change))
@@ -273,19 +276,13 @@ class _DetailDialog(QDialog):
         self._browser.setHtml("".join(lines))
 
     def _render_phrase(self, pid: int) -> None:
-        rows = self.repo.db.conn.execute(
-            "SELECT meaning, explanation, example, example_zh FROM phrase_occurrences "
-            "WHERE phrase_id = ? ORDER BY id DESC", (pid,),
-        ).fetchall()
-        if not rows:
+        detail = self.repo.get_phrase_detail(pid)
+        if not detail:
             self._browser.setPlainText("（已删除）")
             return
-        main = self.repo.db.conn.execute(
-            "SELECT text FROM phrases WHERE id = ?", (pid,)
-        ).fetchone()
-        lines = [f"<h2>{escape(main['text'])}</h2>"]
+        lines = [f"<h2>{escape(detail['text'])}</h2>"]
         seen: set[str] = set()
-        for r in rows:
+        for r in detail["occurrences"]:
             if r["meaning"] in seen:
                 continue
             seen.add(r["meaning"])
@@ -299,20 +296,15 @@ class _DetailDialog(QDialog):
         self._browser.setHtml("".join(lines))
 
     def _render_grammar(self, gid: int) -> None:
-        rows = self.repo.db.conn.execute(
-            "SELECT g.name, g.name_zh, o.source, o.explanation, o.why_used_here, "
-            "o.simple_example, o.simple_example_zh, o.common_mistake "
-            "FROM grammar_patterns g JOIN grammar_occurrences o ON o.grammar_id = g.id "
-            "WHERE g.id = ? ORDER BY o.id DESC", (gid,),
-        ).fetchall()
-        if not rows:
+        detail = self.repo.get_grammar_detail(gid)
+        if not detail:
             self._browser.setPlainText("（已删除）")
             return
         lines = [
-            f"<h2>{escape(rows[0]['name_zh'] or rows[0]['name'])}</h2>",
-            f"<p style='color:#888'>{escape(rows[0]['name'])}</p>",
+            f"<h2>{escape(detail['name_zh'] or detail['name'])}</h2>",
+            f"<p style='color:#888'>{escape(detail['name'])}</p>",
         ]
-        for r in rows[:3]:
+        for r in detail["occurrences"][:1]:
             if r["source"]:
                 lines.append(f"<p style='color:#888'>出处：{escape(r['source'])}</p>")
             if r["explanation"]:
@@ -325,14 +317,10 @@ class _DetailDialog(QDialog):
                 lines.append(
                     f"<p>例：{escape(r['simple_example'])}　{escape(r['simple_example_zh'] or '')}</p>"
                 )
-            break
         self._browser.setHtml("".join(lines))
 
     def _render_expression(self, eid: int) -> None:
-        r = self.repo.db.conn.execute(
-            "SELECT text, meaning, usage, when_to_use, example, example_zh "
-            "FROM academic_expressions WHERE id = ?", (eid,),
-        ).fetchone()
+        r = self.repo.get_expression_detail(eid)
         if not r:
             self._browser.setPlainText("（已删除）")
             return
@@ -346,10 +334,7 @@ class _DetailDialog(QDialog):
         self._browser.setHtml(html)
 
     def _render_concept(self, cid: int) -> None:
-        r = self.repo.db.conn.execute(
-            "SELECT term, translation, simple_explanation, meaning_in_this_paper "
-            "FROM concepts WHERE id = ?", (cid,),
-        ).fetchone()
+        r = self.repo.get_concept_detail(cid)
         if not r:
             self._browser.setPlainText("（已删除）")
             return
@@ -360,10 +345,7 @@ class _DetailDialog(QDialog):
         self._browser.setHtml(html)
 
     def _render_pattern(self, pid: int) -> None:
-        r = self.repo.db.conn.execute(
-            "SELECT structure_summary, skeleton FROM sentence_patterns WHERE id = ?",
-            (pid,),
-        ).fetchone()
+        r = self.repo.get_sentence_pattern(pid)
         if not r:
             self._browser.setPlainText("（已删除）")
             return

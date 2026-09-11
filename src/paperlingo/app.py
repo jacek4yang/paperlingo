@@ -1,15 +1,16 @@
-"""应用启动：HiDPI、字体、主题、数据库、主窗口。"""
+"""Application startup: HiDPI, fonts, theme, database, main window."""
 
 from __future__ import annotations
 
 import logging
+import re
 import sys
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
-from paperlingo.database.db import Database
+from paperlingo.database.db import Database, DatabaseOpenError
 from paperlingo.database.repository import Repository
 from paperlingo.services.logging_setup import setup_logging
 from paperlingo.services.settings import AppSettings
@@ -20,25 +21,43 @@ logger = logging.getLogger(__name__)
 
 
 def _apply_scale_fonts(qss: str, scale: float) -> str:
-    import re
-
     def repl(m: re.Match) -> str:
         return f"font-size: {max(9, round(int(m.group(1)) * scale))}px"
 
     return re.sub(r"font-size:\s*(\d+)px", repl, qss)
 
 
+def _report_database_error(path, reason: str) -> None:
+    """Show a clear, user-facing Chinese error for an unopenable database and
+    terminate cleanly. This is the portable-app contract: never silently fall
+    back to another location."""
+    message = (
+        "无法创建或打开本地数据库：\n\n"
+        f"{path}\n\n"
+        "PaperLingo 是免安装应用，数据保存在程序所在目录。请把程序放到一个可写的目录"
+        "（例如桌面或文档文件夹）后重新启动。\n\n"
+        f"错误详情：{reason}"
+    )
+    logger.critical("database initialization failed at %s: %s", path, reason)
+    try:
+        box = QMessageBox(QMessageBox.Icon.Critical, "PaperLingo", message)
+        box.exec()
+    except Exception:
+        # No QApplication possible — fall back to stderr.
+        print(message, file=sys.stderr)
+
+
 def run() -> int:
     log_file = setup_logging()
-    logger.info("PaperLingo 启动，日志文件：%s", log_file)
+    logger.info("PaperLingo starting, log file: %s", log_file)
 
     def _excepthook(exc_type, exc, tb) -> None:
-        logger.critical("未捕获异常", exc_info=(exc_type, exc, tb))
+        logger.critical("uncaught exception", exc_info=(exc_type, exc, tb))
         sys.__excepthook__(exc_type, exc, tb)
 
     sys.excepthook = _excepthook
 
-    # 高 DPI：Qt6 默认启用，这里再做圆角策略
+    # HiDPI: on by default in Qt6; configure the rounding policy here.
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
@@ -46,7 +65,7 @@ def run() -> int:
     app.setApplicationName("PaperLingo")
     app.setOrganizationName("PaperLingo")
 
-    # 默认字体：Windows 上微软雅黑 UI 优先
+    # Default font: prefer Microsoft YaHei UI on Windows.
     font = QFont("Microsoft YaHei UI", 10)
     font.setStyleHint(QFont.StyleHint.SansSerif)
     app.setFont(font)
@@ -54,9 +73,9 @@ def run() -> int:
     try:
         db = Database()
         repo = Repository(db)
-    except Exception:
-        logger.exception("数据库初始化失败：%s", "?")
-        raise
+    except DatabaseOpenError as e:
+        _report_database_error(e.path, e.reason)
+        return 1
     settings = AppSettings.load(repo)
 
     theme_key = settings.theme
@@ -71,6 +90,10 @@ def run() -> int:
 
     win = MainWindow(db, repo, settings)
     win.show()
-    code = app.exec()
-    db.close()
-    return code
+    # Shutdown safety net: close on aboutToQuit AND in a finally block so a
+    # crashed event loop still commits/checkpoints/closes the database.
+    app.aboutToQuit.connect(db.close)
+    try:
+        return app.exec()
+    finally:
+        db.close()

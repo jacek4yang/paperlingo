@@ -52,7 +52,7 @@ class ReadingPage(QWidget):
         self._prompt: CompiledPrompt | None = None
         self._compiler = PromptCompiler()
 
-        self._draft = DraftStore()
+        self._draft = DraftStore(repo)
         self._setup_ui()
         self._apply_defaults()
         self._load_draft()
@@ -436,16 +436,9 @@ class ReadingPage(QWidget):
     def _add_learning_item(self, item_type: str, key: str, state: str) -> None:
         from paperlingo.domain.learning import MasteryStatus
 
-        # 通过 lemma/text 反查知识条目 id
-        table = {"word": "words", "phrase": "phrases"}.get(item_type)
-        if not table:
-            return
-        col = "lemma" if item_type == "word" else "text"
-        row = self.repo.db.conn.execute(
-            f"SELECT id FROM {table} WHERE {col} LIKE ?", (key.lower() if item_type == "word" else key,)
-        ).fetchone()
-        if row:
-            self.repo.set_mastery(item_type, int(row["id"]), MasteryStatus(state))
+        ref_id = self.repo.find_knowledge_item_id(item_type, key)
+        if ref_id is not None:
+            self.repo.set_mastery(item_type, ref_id, MasteryStatus(state))
 
     # ------------------------------------------------------------------
     def _load_example(self) -> None:
