@@ -1,4 +1,4 @@
-"""学习领域模型：知识点类型、掌握程度、复习相关枚举。"""
+"""Learning domain model: item types, mastery status, review enums."""
 
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ ITEM_TYPE_LABELS: dict[ItemType, str] = {
 
 
 class MasteryStatus(StrEnum):
-    """用户对知识点的自评。只有"不熟/不会"进入学习队列。"""
+    """Self-assessed mastery. Only unfamiliar/hard enter the review queue."""
 
     UNKNOWN = "unknown"  # 未标记
     KNOWN = "known"  # 认识
@@ -40,14 +40,14 @@ MASTERY_LABELS: dict[MasteryStatus, str] = {
     MasteryStatus.HARD: "不会",
 }
 
-#: 需要进入学习队列的状态
+#: Statuses that enter the review queue
 LEARNING_STATUSES: frozenset[MasteryStatus] = frozenset(
     {MasteryStatus.UNFAMILIAR, MasteryStatus.HARD}
 )
 
 
 class Rating(StrEnum):
-    """复习评分（对应 FSRS 四档）。"""
+    """Review rating (the four FSRS levels)."""
 
     AGAIN = "again"
     HARD = "hard"

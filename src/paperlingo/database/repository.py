@@ -24,7 +24,7 @@ PAGE_SIZE = 50
 
 
 # ---------------------------------------------------------------------------
-# 行数据类（UI 消费的轻量视图）
+# Row dataclasses (lightweight views consumed by the UI)
 
 
 @dataclass
@@ -399,7 +399,7 @@ class Repository:
             )
 
     # ------------------------------------------------------------------
-    # analyses 查询
+    # analyses queries
 
     def list_analyses(
         self,
@@ -556,7 +556,7 @@ class Repository:
         ).fetchall()
         result: list[PhraseRow] = []
         for r in rows:
-            # occurrence 表无 created_at，取所属分析的时间
+            # occurrence tables have no created_at; use the owning analysis time
             created = self.db.conn.execute(
                 "SELECT a.created_at FROM phrase_occurrences o "
                 "JOIN analyses a ON a.id = o.analysis_id "
@@ -587,7 +587,7 @@ class Repository:
         ).fetchall()
         result: list[GrammarRow] = []
         for r in rows:
-            # occurrence 表无 created_at，取所属分析的时间
+            # occurrence tables have no created_at; use the owning analysis time
             created = self.db.conn.execute(
                 "SELECT a.created_at FROM grammar_occurrences o "
                 "JOIN analyses a ON a.id = o.analysis_id "

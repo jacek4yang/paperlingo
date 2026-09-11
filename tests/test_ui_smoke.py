@@ -1,4 +1,4 @@
-"""UI smoke test：能启动主窗口、切页、加载示例。"""
+"""UI smoke test: main window starts, pages switch, example loads."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def test_qss_builds_for_both_themes() -> None:
 
 
 def test_ai_text_rendered_as_plain_text(qtbot) -> None:
-    """AI 内容含 HTML 标签时必须按纯文本渲染，不得被解释为富文本。"""
+    """AI content with HTML tags must render as plain text, never rich text."""
     from PyQt6.QtCore import Qt
 
     from paperlingo.ui.widgets.common import _flow_text_label
@@ -70,4 +70,4 @@ def test_ai_text_rendered_as_plain_text(qtbot) -> None:
     lbl = _flow_text_label(malicious)
     qtbot.addWidget(lbl)
     assert lbl.textFormat() == Qt.TextFormat.PlainText
-    assert lbl.text() == malicious  # 文本原样保留，未被解释
+    assert lbl.text() == malicious  # text preserved verbatim, not interpreted

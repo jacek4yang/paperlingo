@@ -1,4 +1,4 @@
-"""剪贴板服务（UI 无关封装，便于测试与复用）。"""
+"""Clipboard service (UI-independent wrapper, easy to test and reuse)."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ class ClipboardError(RuntimeError):
 
 
 def read_text() -> str:
-    """读取系统剪贴板文本（依赖 Qt，须在 QApplication 创建后调用）。"""
+    """Read system clipboard text (Qt-dependent; requires a QApplication)."""
     from PyQt6.QtWidgets import QApplication
 
     cb = QApplication.clipboard()

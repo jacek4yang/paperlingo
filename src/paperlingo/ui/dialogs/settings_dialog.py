@@ -1,4 +1,4 @@
-"""设置对话框：主题 / 字体 / 默认分析深度 / 默认 Profile / 导出。"""
+"""Settings dialog: theme / font / default depth / default profile / export."""
 
 from __future__ import annotations
 
@@ -73,7 +73,7 @@ class SettingsDialog(QDialog):
 
         v.addLayout(form)
 
-        # 数据
+        # Data
         db_label = QLabel(f"数据库位置：{repo.db.path}")
         db_label.setWordWrap(True)
         db_label.setProperty("role", "tertiary")

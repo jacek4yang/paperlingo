@@ -1,11 +1,12 @@
-"""有限度的 JSON 修复。
+"""Bounded JSON repair.
 
-只允许"形式级"修复，绝不改变语义：
-- 智能引号 -> 直引号
-- 去除对象/数组尾部的多余逗号
-- 未闭合的括号/字符串尝试收尾
+Only form-level repairs are allowed; semantics are never changed:
+- smart quotes -> straight quotes
+- remove trailing commas in objects/arrays
+- attempt to close unterminated brackets/strings
 
-不允许：猜测字段名、补全缺失内容、修改字符串值。
+Not allowed: guessing field names, completing missing content, or editing
+string values.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ _SMART_TO_STRAIGHT = {
     "‘": "'", "’": "'", "‚": "'", "‛": "'",
 }
 
-#: 尾部逗号：{"a":1,} 或 [1,2,]
+#: Trailing comma: {"a":1,} or [1,2,]
 _TRAILING_COMMA_RE = re.compile(r",(\s*[}\]])")
 
 
@@ -43,7 +44,7 @@ def _fix_trailing_commas(text: str) -> tuple[str, bool]:
 
 
 def _close_unbalanced(text: str) -> tuple[str, bool]:
-    """如果 JSON 被截断（括号/字符串未闭合），尝试补一个合法结尾。"""
+    """If the JSON is truncated (unterminated brackets/strings), append a valid ending."""
     in_string = False
     escape = False
     stack: list[str] = []
@@ -73,7 +74,7 @@ def _close_unbalanced(text: str) -> tuple[str, bool]:
 
 
 def try_repair(text: str) -> tuple[str | None, list[RepairAction]]:
-    """尝试修复，返回 (修复后文本, 修复动作列表)。无法修复返回 (None, [])。"""
+    """Attempt repair; returns (fixed text, repair actions). (None, []) when unrepairable."""
     actions: list[RepairAction] = []
     fixed = text
 

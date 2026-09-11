@@ -1,4 +1,4 @@
-"""复习页：到期学习项的问答式复习，Again/Hard/Good/Easy 四档评分。"""
+"""Review page: Q&A review of due learning items rated Again/Hard/Good/Easy."""
 
 from __future__ import annotations
 
@@ -56,7 +56,7 @@ class ReviewPage(QWidget):
         )
         v.addWidget(self._empty, 1)
 
-        # 复习卡片区
+        # Review card area
         self._card_area = QScrollArea()
         self._card_area.setWidgetResizable(True)
         self._card_area.setFrameShape(QScrollArea.Shape.NoFrame)
@@ -68,7 +68,7 @@ class ReviewPage(QWidget):
         self._card_area.setWidget(card_inner)
         v.addWidget(self._card_area, 1)
 
-        # 类型标签 + 正面（内容来自数据库/AI，强制纯文本渲染）
+        # Type label + front (DB/AI content is always rendered as plain text)
         self._type_label = _plain(QLabel())
         self._type_label.setProperty("role", "tertiary")
         self._card_v.addWidget(self._type_label)

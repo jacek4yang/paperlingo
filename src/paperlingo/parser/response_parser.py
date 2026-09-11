@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 
 from paperlingo.parser.repair import RepairAction, try_repair
 
-#: 输入长度上限（1MB，防止异常输入拖垮应用）
+#: Input length cap (1MB, so abnormal input cannot stall the app)
 MAX_RESPONSE_LENGTH = 1_000_000
 
 _FENCE_RE = re.compile(r"```(?:json|JSON)?\s*\r?\n(.*?)```", re.DOTALL)
@@ -45,24 +45,24 @@ class ParseResult:
     data: dict | None = None
     error: ParseError | None = None
     repairs: list[RepairAction] = field(default_factory=list)
-    #: 实际参与解析的 JSON 文本（可能来自提取）
+    #: The JSON text that actually participated in parsing (possibly extracted)
     extracted: str = ""
 
 
 def _preprocess(raw: str) -> tuple[str, list[RepairAction]]:
-    """只做安全的形式规整：BOM、零宽字符、全角空格、CRLF。"""
+    """Only safe form normalization: BOM, zero-width characters, full-width spaces, CRLF."""
     repairs: list[RepairAction] = []
     text = raw
     if text.startswith("﻿"):
         text = text.lstrip("﻿")
-        repairs.append(RepairAction("remove_bom", "移除 BOM"))
+        repairs.append(RepairAction("remove_bom", "removed BOM"))
     for ch, name in (("​", "零宽空格"), ("‌", "零宽连接符"), ("‍", "零宽连接符"), ("⁠", "单词连接符")):
         if ch in text:
             text = text.replace(ch, "")
-            repairs.append(RepairAction("remove_invisible", f"移除{name}"))
+            repairs.append(RepairAction("remove_invisible", f"removed {name}"))
     if "　" in text:
         text = text.replace("　", " ")
-        repairs.append(RepairAction("fullwidth_space", "全角空格替换为普通空格"))
+        repairs.append(RepairAction("fullwidth_space", "full-width space normalized"))
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     return text.strip(), repairs
 
@@ -92,7 +92,7 @@ def _extract_fenced(text: str) -> list[str]:
 
 
 def _extract_balanced(text: str) -> list[str]:
-    """扫描文本，提取所有平衡的最外层 {...} 块（忽略字符串内部的括号）。"""
+    """Scan the text and extract all balanced outer {...} blocks (ignoring braces inside strings)."""
     results: list[str] = []
     depth = 0
     start = -1
@@ -121,7 +121,7 @@ def _extract_balanced(text: str) -> list[str]:
 
 
 def parse_response(raw: str) -> ParseResult:
-    """解析 AI 返回的原始文本，返回结构化结果。绝不抛异常。"""
+    """Parse the raw AI response into a structured result. Never raises."""
     if not raw or not raw.strip():
         return ParseResult(ok=False, error=ParseError(message="内容为空，请先粘贴 AI 返回结果"))
 
@@ -137,7 +137,7 @@ def parse_response(raw: str) -> ParseResult:
         data, _err = _try_loads(candidate)
         if data is not None:
             return ParseResult(ok=True, data=data, repairs=repairs + extra_repairs, extracted=candidate)
-        # 尝试有限修复
+        # Try bounded repair
         fixed, fix_actions = try_repair(candidate)
         if fixed is not None and fix_actions:
             data2, _err2 = _try_loads(fixed)
@@ -150,23 +150,23 @@ def parse_response(raw: str) -> ParseResult:
                 )
         return None
 
-    # 1. 整体严格解析
+    # 1. strict parse of the whole text
     r = attempt(text, [])
     if r:
         return r
 
     candidates: list[str] = []
-    # 2. markdown 围栏
+    # 2. markdown fences
     candidates.extend(_extract_fenced(text))
-    # 3. 平衡括号提取
+    # 3. balanced-brace extraction
     candidates.extend(_extract_balanced(text))
 
     for cand in candidates:
-        r = attempt(cand, [RepairAction("extract", "从混杂文本中提取 JSON 对象")])
+        r = attempt(cand, [RepairAction("extract", "extracted the JSON object from surrounding text")])
         if r:
             return r
 
-    # 全部失败：给出最有用的错误
+    # All attempts failed: report the most useful error
     if candidates:
         _data, err = _try_loads(candidates[0])
         if err:

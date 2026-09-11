@@ -1,4 +1,4 @@
-"""Pydantic Schema 校验。"""
+"""Pydantic schema validation tests."""
 
 from __future__ import annotations
 

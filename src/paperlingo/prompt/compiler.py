@@ -53,13 +53,13 @@ class PromptCompiler:
 
     def __init__(self, template_id: str = DEFAULT_TEMPLATE_ID) -> None:
         if template_id not in TEMPLATES:
-            raise PromptCompileError(f"unknown template: {template_id}")
+            raise PromptCompileError(f"未知模板：{template_id}")
         self.template = TEMPLATES[template_id]
 
     # ------------------------------------------------------------------
     def compile(self, request: AnalysisRequest, profile_id: str = DEFAULT_PROFILE_ID) -> CompiledPrompt:
         if not request.source_text.strip():
-            raise PromptCompileError("source text must not be empty")
+            raise PromptCompileError("原文不能为空")
 
         profile = get_profile(profile_id)
         values = self._build_values(request)
@@ -83,7 +83,7 @@ class PromptCompiler:
         # The compiled result must not leave unfilled placeholders behind.
         leftover = [p for p in self.template.placeholders if "{" + p + "}" in text]
         if leftover:
-            raise PromptCompileError(f"template has unfilled placeholders: {leftover}")
+            raise PromptCompileError(f"模板存在未填充占位符：{leftover}")
 
         return CompiledPrompt(
             text=text,

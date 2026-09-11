@@ -20,7 +20,7 @@ from paperlingo.services.clipboard import write_text
 
 
 class Card(QFrame):
-    """基础卡片容器：圆角白底细边框，标题 + 内容区。"""
+    """Base card container: rounded card with subtle border, title + content."""
 
     def __init__(self, title: str = "", parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -44,10 +44,11 @@ class Card(QFrame):
 
 
 def _plain(lbl: QLabel) -> QLabel:
-    """强制 QLabel 按纯文本渲染。
+    """Force plain-text rendering on a QLabel.
 
-    QLabel 默认自动检测富文本：AI 返回内容若含 <img>/<b>/<style> 等
-    标签会被解释执行。所有展示 AI/用户数据的标签都必须经过这里。
+    QLabel auto-detects rich text by default: AI content containing
+    <img>/<b>/<style> tags would be interpreted. Every label displaying
+    AI/user data must go through here.
     """
     lbl.setTextFormat(Qt.TextFormat.PlainText)
     return lbl
@@ -64,261 +65,17 @@ def _flow_text_label(text: str, role: str = "") -> QLabel:
     return lbl
 
 
-class TranslationCard(Card):
-    """翻译卡片：自然翻译（大）+ 直译（小）+ 核心含义 + 译文说明。"""
-
-    def __init__(self, natural: str, literal: str, core_meaning: str,
-                 notes: list[str], parent: QWidget | None = None) -> None:
-        super().__init__("翻译", parent)
-        if natural:
-            nat = _flow_text_label(natural)
-            nat.setStyleSheet("font-size: 16px; font-weight: 600;")
-            self._v.addWidget(nat)
-        if core_meaning:
-            self._v.addWidget(_flow_text_label(core_meaning, "secondary"))
-        if literal and literal != natural:
-            self._v.addWidget(_flow_text_label(f"直译：{literal}", "tertiary"))
-        for note in notes[:6]:
-            if note.strip():
-                self._v.addWidget(_flow_text_label(f"· {note}", "tertiary"))
 
 
-class OverviewCard(Card):
-    """总览卡片：难度 + 句型 + 一句话解释 + 阅读策略。"""
-
-    def __init__(self, overview, parent: QWidget | None = None) -> None:
-        super().__init__(parent=parent)
-        top = QHBoxLayout()
-        top.setSpacing(10)
-        diff = overview.difficulty
-        badge = QLabel(f"难度 {'●' * diff}{'○' * (5 - diff)}")
-        badge.setStyleSheet(
-            f"color: {('#c47f17' if diff >= 4 else '#2f9e63' if diff <= 2 else '#59626d')};"
-            "font-size: 12px; font-weight: 600;"
-        )
-        top.addWidget(badge)
-        if overview.sentence_type:
-            st = _plain(QLabel(overview.sentence_type))
-            st.setProperty("role", "tertiary")
-            top.addWidget(st)
-        top.addStretch(1)
-        self._v.addLayout(top)
-        if overview.one_sentence_explanation:
-            self._v.addWidget(_flow_text_label(overview.one_sentence_explanation))
-        if overview.difficulty_reason:
-            self._v.addWidget(_flow_text_label(f"为什么难：{overview.difficulty_reason}", "tertiary"))
-        if overview.reading_strategy:
-            box = QFrame()
-            box.setProperty("role", "inset")
-            bv = QVBoxLayout(box)
-            bv.setContentsMargins(12, 8, 12, 8)
-            lbl = _flow_text_label(f"阅读策略：{overview.reading_strategy}", "secondary")
-            bv.addWidget(lbl)
-            self._v.addWidget(box)
 
 
-class GrammarCard(Card):
-    def __init__(self, g, parent: QWidget | None = None) -> None:
-        title = g.name_zh or g.name
-        super().__init__(title, parent)
-        if g.name and g.name_zh and g.name != g.name_zh:
-            en = _plain(QLabel(g.name))
-            en.setProperty("role", "tertiary")
-            self._v.addWidget(en)
-        if g.source:
-            src = _plain(QLabel(g.source))
-            src.setWordWrap(True)
-            src.setStyleSheet(
-                "font-family: 'Segoe UI', 'Cascadia Code', monospace; font-size: 12px;"
-            )
-            src.setProperty("role", "secondary")
-            self._v.addWidget(src)
-        if g.explanation:
-            self._v.addWidget(_flow_text_label(g.explanation))
-        if g.why_used_here:
-            self._v.addWidget(_flow_text_label(f"在这里为什么这么用：{g.why_used_here}", "secondary"))
-        if g.simple_example:
-            ex = QFrame()
-            ex.setProperty("role", "inset")
-            ev = QVBoxLayout(ex)
-            ev.setContentsMargins(12, 8, 12, 8)
-            ev.setSpacing(4)
-            ev.addWidget(_flow_text_label(g.simple_example))
-            if g.simple_example_zh:
-                ev.addWidget(_flow_text_label(g.simple_example_zh, "tertiary"))
-            self._v.addWidget(ex)
-        if g.common_mistake:
-            self._v.addWidget(_flow_text_label(f"常见误解：{g.common_mistake}", "tertiary"))
-        stars = "★" * g.importance + "☆" * (5 - g.importance)
-        imp = QLabel(f"重要程度 {stars}")
-        imp.setProperty("role", "tertiary")
-        self._v.addWidget(imp)
 
 
-class WordCard(Card):
-    """单词卡片：本句含义为核心。支持「加入学习」。"""
 
-    def __init__(self, w, parent: QWidget | None = None,
-                 on_learn: Callable[[str, str, QWidget], None] | None = None) -> None:
-        lemma = w.lemma or w.surface
-        super().__init__(f"{w.surface or lemma}", parent)
-        sub = _plain(QLabel(" · ".join(x for x in [w.lemma if w.lemma != w.surface else "", w.pos_zh or w.pos] if x)))
-        if sub.text():
-            sub.setProperty("role", "tertiary")
-            self._v.addWidget(sub)
-        if w.phonetic:
-            ph = _plain(QLabel(w.phonetic))
-            ph.setProperty("role", "tertiary")
-            self._v.addWidget(ph)
-        if w.meaning_in_context:
-            box = QFrame()
-            box.setProperty("role", "inset")
-            bv = QVBoxLayout(box)
-            bv.setContentsMargins(12, 8, 12, 8)
-            bv.setSpacing(4)
-            t = QLabel("本句含义")
-            t.setProperty("role", "tertiary")
-            bv.addWidget(t)
-            m = _flow_text_label(w.meaning_in_context)
-            m.setStyleSheet("font-weight: 600;")
-            bv.addWidget(m)
-            self._v.addWidget(box)
-        if w.why_here:
-            self._v.addWidget(_flow_text_label(f"为什么这样理解：{w.why_here}", "secondary"))
-        if w.academic_meaning:
-            self._v.addWidget(_flow_text_label(f"学术语境：{w.academic_meaning}", "secondary"))
-        if w.common_meanings:
-            self._v.addWidget(_flow_text_label("常见含义：" + "、".join(w.common_meanings[:5]), "tertiary"))
-        if w.collocations:
-            self._v.addWidget(_flow_text_label("常见搭配：" + "  ".join(w.collocations[:5]), "tertiary"))
-        if on_learn is not None:
-            btns = QHBoxLayout()
-            btns.addStretch(1)
-            known = QPushButton("我认识")
-            known.setProperty("role", "ghost")
-            known.clicked.connect(lambda: on_learn("word", lemma, "known"))
-            learn = QPushButton("加入学习")
-            learn.setProperty("role", "chip")
-            learn.clicked.connect(lambda: on_learn("word", lemma, "unfamiliar"))
-            btns.addWidget(known)
-            btns.addWidget(learn)
-            self._v.addLayout(btns)
-
-
-class PhraseCard(Card):
-    def __init__(self, p, parent: QWidget | None = None,
-                 on_learn: Callable[[str, str, QWidget], None] | None = None) -> None:
-        super().__init__(p.text, parent)
-        if p.meaning:
-            m = _flow_text_label(p.meaning)
-            m.setStyleSheet("font-weight: 600;")
-            self._v.addWidget(m)
-        if p.explanation:
-            self._v.addWidget(_flow_text_label(p.explanation, "secondary"))
-        if p.academic_usage:
-            self._v.addWidget(_flow_text_label(f"学术用法：{p.academic_usage}", "tertiary"))
-        if p.example:
-            ex = QFrame()
-            ex.setProperty("role", "inset")
-            ev = QVBoxLayout(ex)
-            ev.setContentsMargins(12, 8, 12, 8)
-            ev.setSpacing(4)
-            ev.addWidget(_flow_text_label(p.example))
-            if p.example_zh:
-                ev.addWidget(_flow_text_label(p.example_zh, "tertiary"))
-            self._v.addWidget(ex)
-        if on_learn is not None:
-            btns = QHBoxLayout()
-            btns.addStretch(1)
-            known = QPushButton("我认识")
-            known.setProperty("role", "ghost")
-            known.clicked.connect(lambda: on_learn("phrase", p.text, "known"))
-            learn = QPushButton("加入学习")
-            learn.setProperty("role", "chip")
-            learn.clicked.connect(lambda: on_learn("phrase", p.text, "unfamiliar"))
-            btns.addWidget(known)
-            btns.addWidget(learn)
-            self._v.addLayout(btns)
-
-
-class AcademicExpressionCard(Card):
-    def __init__(self, e, parent: QWidget | None = None) -> None:
-        super().__init__(e.text, parent)
-        if e.meaning:
-            m = _flow_text_label(e.meaning)
-            m.setStyleSheet("font-weight: 600;")
-            self._v.addWidget(m)
-        if e.usage:
-            self._v.addWidget(_flow_text_label(e.usage, "secondary"))
-        if e.when_to_use:
-            self._v.addWidget(_flow_text_label(f"什么时候用：{e.when_to_use}", "tertiary"))
-        if e.example:
-            ex = _plain(QLabel(e.example + (f"　{e.example_zh}" if e.example_zh else "")))
-            ex.setWordWrap(True)
-            ex.setProperty("role", "tertiary")
-            self._v.addWidget(ex)
-
-
-class ReferenceCard(Card):
-    def __init__(self, r, parent: QWidget | None = None) -> None:
-        super().__init__("指代关系", parent)
-        flow = QHBoxLayout()
-        flow.setSpacing(10)
-        expr = _plain(QLabel(r.expression))
-        expr.setStyleSheet("font-family: 'Segoe UI'; font-weight: 600;")
-        arrow = QLabel("↓")
-        arrow.setProperty("role", "tertiary")
-        refers = _plain(QLabel(r.refers_to))
-        refers.setWordWrap(True)
-        for w_ in (expr, arrow, refers):
-            flow.addWidget(w_)
-        flow.addStretch(1)
-        self._v.addLayout(flow)
-        if r.explanation:
-            self._v.addWidget(_flow_text_label(r.explanation, "secondary"))
-
-
-class ConceptCard(Card):
-    def __init__(self, c, parent: QWidget | None = None) -> None:
-        title = f"{c.term}" + (f"（{c.translation}）" if c.translation else "")
-        super().__init__(title, parent)
-        if c.simple_explanation:
-            self._v.addWidget(_flow_text_label(c.simple_explanation))
-        if c.meaning_in_this_paper:
-            self._v.addWidget(_flow_text_label(f"在本文中：{c.meaning_in_this_paper}", "secondary"))
-        if c.background_needed:
-            tag = QLabel("建议补充背景知识")
-            tag.setProperty("role", "tertiary")
-            self._v.addWidget(tag)
-
-
-class MisunderstandingCard(Card):
-    def __init__(self, m, parent: QWidget | None = None) -> None:
-        super().__init__("易错理解", parent)
-        wrong = QFrame()
-        wrong.setProperty("role", "inset")
-        wv = QVBoxLayout(wrong)
-        wv.setContentsMargins(12, 8, 12, 8)
-        w1 = QLabel("容易误读成")
-        w1.setStyleSheet("color: #d64545; font-size: 12px; font-weight: 600;")
-        wv.addWidget(w1)
-        wv.addWidget(_flow_text_label(m.wrong_interpretation))
-        self._v.addWidget(wrong)
-        if m.why_wrong:
-            self._v.addWidget(_flow_text_label(f"为什么错：{m.why_wrong}", "secondary"))
-        right = QFrame()
-        right.setProperty("role", "inset")
-        rv = QVBoxLayout(right)
-        rv.setContentsMargins(12, 8, 12, 8)
-        r1 = QLabel("正确理解")
-        r1.setStyleSheet("color: #2f9e63; font-size: 12px; font-weight: 600;")
-        rv.addWidget(r1)
-        rv.addWidget(_flow_text_label(m.correct_interpretation))
-        self._v.addWidget(right)
 
 
 class CollapsibleCard(Card):
-    """可折叠卡片：标题栏 + 展开按钮，次要内容默认折叠。"""
+    """Collapsible card: title bar + toggle; secondary content starts collapsed."""
 
     def __init__(self, title: str, expanded: bool = False,
                  parent: QWidget | None = None) -> None:
@@ -353,7 +110,7 @@ class CollapsibleCard(Card):
 
 
 class CopyButton(QPushButton):
-    """点击复制文本并短暂显示「已复制」。"""
+    """Copy text on click and briefly show the copied state."""
 
     def __init__(self, get_text: Callable[[], str], label: str = "复制",
                  parent: QWidget | None = None) -> None:
@@ -381,7 +138,7 @@ class CopyButton(QPushButton):
 
 
 class EmptyState(QWidget):
-    """空状态：极简纯文字（主文案 + 副文案 + 可选按钮），不使用装饰图标。"""
+    """Empty state: minimal text-only (title + subtitle + optional action button)."""
 
     def __init__(self, title: str, subtitle: str = "",
                  action_text: str = "", on_action: Callable[[], None] | None = None,
@@ -412,7 +169,7 @@ class EmptyState(QWidget):
 
 
 class ErrorState(QWidget):
-    """错误状态：标题 + 详情 + 可选操作按钮。"""
+    """Error state: title + detail + optional action buttons."""
 
     def __init__(self, title: str, detail: str = "",
                  buttons: list[tuple[str, Callable[[], None]]] | None = None,
@@ -444,7 +201,7 @@ class ErrorState(QWidget):
 
 
 class SkeletonLoading(QWidget):
-    """简单骨架屏：几条灰色占位条。"""
+    """Simple skeleton: a few grey placeholder bars."""
 
     def __init__(self, lines: int = 4, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -463,7 +220,7 @@ class SkeletonLoading(QWidget):
 
 
 class LearningStatusButtons(QWidget):
-    """认识 / 不熟 / 不会 三态按钮组。"""
+    """Three-state mastery button group (known / unfamiliar / hard)."""
 
     def __init__(self, current: MasteryStatus,
                  on_change: Callable[[MasteryStatus], None],
