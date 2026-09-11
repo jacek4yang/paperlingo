@@ -797,3 +797,11 @@ class Repository:
             "learning": count1("SELECT COUNT(*) FROM learning_items WHERE status IN ('unfamiliar','hard')"),
             "mastered": count1("SELECT COUNT(*) FROM learning_items WHERE status = 'known'"),
         }
+
+    def weak_learning_counts(self) -> list[sqlite3.Row]:
+        """Count learning items per item type among the weak statuses
+        (unfamiliar/hard). Used to build the learner profile for prompts."""
+        return self.db.conn.execute(
+            "SELECT li.item_type, COUNT(*) AS c FROM learning_items li "
+            "WHERE li.status IN ('unfamiliar','hard') GROUP BY li.item_type"
+        ).fetchall()

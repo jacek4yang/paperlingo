@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
 
 from paperlingo.database.repository import Repository
 from paperlingo.domain.analysis import DEPTH_LABELS, AnalysisRequest, PaperAnalysis
-from paperlingo.domain.paper import DOMAINS
+from paperlingo.domain.paper import DOMAIN_OPTIONS
 from paperlingo.parser.response_parser import parse_response
 from paperlingo.prompt.compiler import CompiledPrompt, PromptCompiler, compile_repair_prompt
 from paperlingo.prompt.profiles import list_profiles
@@ -126,7 +126,9 @@ class ReadingPage(QWidget):
         self.authors_edit = QLineEdit()
         self.authors_edit.setPlaceholderText("Authors 作者")
         self.domain_combo = QComboBox()
-        self.domain_combo.addItems(DOMAINS)
+        for value, label in DOMAIN_OPTIONS:
+            # Stable English value goes into the prompt; the label is UI-only.
+            self.domain_combo.addItem(label, value)
         grid.addWidget(self.title_edit, 0, 0)
         grid.addWidget(self.doi_edit, 0, 1)
         grid.addWidget(self.authors_edit, 1, 0)
@@ -272,7 +274,7 @@ class ReadingPage(QWidget):
             title=self.title_edit.text(),
             doi_or_url=self.doi_edit.text(),
             authors=self.authors_edit.text(),
-            domain=self.domain_combo.currentText(),
+            domain=self.domain_combo.currentData() or "auto",
         )
         depth = self.depth_combo.currentData() or "standard"
         return AnalysisRequest(
@@ -288,24 +290,28 @@ class ReadingPage(QWidget):
         )
 
     def _knowledge_profile_text(self) -> str:
+        """Build the learner-profile snippet injected into the prompt.
+
+        Always generated in English (prompt language contract), e.g.
+        "Weak learning categories: vocabulary=4, grammar=2."
+        """
         try:
             stats = self.repo.knowledge_stats()
         except Exception:
             return ""
         if stats["analyses"] < 3:
             return ""
+        rows = self.repo.weak_learning_counts()
+        name_map = {"word": "vocabulary", "phrase": "phrases", "grammar": "grammar",
+                    "expression": "expressions", "concept": "concepts"}
         weak: list[str] = []
-        rows = self.repo.db.conn.execute(
-            "SELECT li.item_type, COUNT(*) c FROM learning_items li "
-            "WHERE li.status IN ('unfamiliar','hard') GROUP BY li.item_type"
-        ).fetchall()
-        name_map = {"word": "单词", "phrase": "短语", "grammar": "语法",
-                    "expression": "学术表达", "concept": "概念"}
         for r in rows:
-            zh = name_map.get(r["item_type"])
-            if zh and r["c"] >= 2:
-                weak.append(f"{zh} {r['c']} 个待掌握")
-        return "；".join(weak[:4])
+            en = name_map.get(r["item_type"])
+            if en and r["c"] >= 2:
+                weak.append(f"{en}={r['c']}")
+        if not weak:
+            return ""
+        return "Weak learning categories: " + ", ".join(weak[:4]) + "."
 
     # ------------------------------------------------------------------
     def _generate_prompt(self) -> None:
@@ -459,7 +465,7 @@ class ReadingPage(QWidget):
                 "paper_title": self.title_edit.text(),
                 "doi_or_url": self.doi_edit.text(),
                 "authors": self.authors_edit.text(),
-                "domain": self.domain_combo.currentText(),
+                "domain": self.domain_combo.currentData(),
                 "analysis_depth": self.depth_combo.currentData(),
                 "profile_id": self.profile_combo.currentData(),
                 "response_text": self.response_edit.toPlainText()[:100000],

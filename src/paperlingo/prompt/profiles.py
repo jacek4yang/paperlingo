@@ -1,7 +1,9 @@
-"""Prompt Profile：针对不同 Web AI 的差异层。
+"""Prompt profiles: per-web-AI differences.
 
-架构上允许每个模型覆盖部分 Prompt，而不是在 UI 里写 `if model == "grok"`。
-v1 中各 Profile 大体共享模板，只在 system preamble / 输出提醒上做微调。
+Architecturally, each model may override parts of the prompt instead of the UI
+sprinkling `if model == "grok"` everywhere. In v1 all profiles share the template;
+they differ only in the system preamble / output reminder. All instruction text is
+English; `display_name` is a UI-facing label and may be Simplified Chinese.
 """
 
 from __future__ import annotations
@@ -11,15 +13,15 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class PromptProfile:
-    """一个 Web AI 的提示词配置。"""
+    """Prompt configuration for one web AI."""
 
     profile_id: str
     display_name: str
-    #: 追加在 Prompt 最前面的补充说明（可为空）
+    #: Extra instruction prepended to the prompt (may be empty)
     preamble: str = ""
-    #: 追加在输出协议之后的提醒（可为空）
+    #: Reminder appended after the output protocol (may be empty)
     output_reminder: str = ""
-    #: 该 AI 是否一般支持联网搜索（仅用于提示用户）
+    #: Whether this AI generally supports web search (only used to inform the user)
     usually_web_capable: bool = True
 
 
@@ -34,25 +36,25 @@ _PROFILES: tuple[PromptProfile, ...] = (
         profile_id="chatgpt",
         display_name="ChatGPT",
         preamble="",
-        output_reminder="\n提醒：直接输出 JSON 对象本身，不要使用代码块。",
+        output_reminder="\nReminder: output the JSON object itself directly; do not use a code block.",
     ),
     PromptProfile(
         profile_id="claude",
         display_name="Claude",
         preamble="",
-        output_reminder="\n提醒：只输出 JSON 对象，不要附带任何前言或结语。",
+        output_reminder="\nReminder: output only the JSON object, with no preamble or closing remarks.",
     ),
     PromptProfile(
         profile_id="grok",
         display_name="Grok",
         preamble="",
-        output_reminder="\n提醒：最终回复只包含 JSON 对象，不含其它任何文字。",
+        output_reminder="\nReminder: the final reply must contain only the JSON object and nothing else.",
     ),
     PromptProfile(
         profile_id="gemini",
         display_name="Gemini",
         preamble="",
-        output_reminder="\n提醒：只输出一个 JSON 对象，不要使用 Markdown 代码块。",
+        output_reminder="\nReminder: output a single JSON object; do not use a Markdown code block.",
     ),
 )
 

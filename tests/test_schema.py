@@ -72,4 +72,4 @@ def test_analysis_request_requires_source() -> None:
 def test_analysis_request_defaults() -> None:
     r = AnalysisRequest(source_text="Hello")
     assert r.analysis_depth == "standard"
-    assert r.domain == "自动判断"
+    assert r.domain == "auto"
