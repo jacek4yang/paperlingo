@@ -109,13 +109,11 @@ def test_segment_explorer_renders_and_selects(qtbot) -> None:
     explorer = SegmentExplorer(palette("dark"))
     qtbot.addWidget(explorer)
     explorer.build(a.syntax)
-    chips = [c for c in explorer.findChildren(type(explorer), "") if c.metaObject().className() == "_SegmentChip"]
     # At minimum the detail panel has content (first chip auto-selected)
     assert explorer._detail_v.count() > 0
 
 
 def test_segmented_control_emits_selection(qtbot) -> None:
-    from PyQt6.QtWidgets import QApplication
 
     seg = SegmentedControl([("a", "A"), ("b", "B")])
     qtbot.addWidget(seg)
@@ -131,8 +129,8 @@ def test_segmented_control_emits_selection(qtbot) -> None:
 
 
 def test_end_to_end_fixture_flow(qtbot, tmp_path: Path) -> None:
-    from paperlingo.ui.main_window import MainWindow
     from paperlingo.services.settings import AppSettings
+    from paperlingo.ui.main_window import MainWindow
 
     db = Database(tmp_path / "e2e.db")
     repo = Repository(db)
@@ -156,7 +154,7 @@ def test_end_to_end_fixture_flow(qtbot, tmp_path: Path) -> None:
     # History can restore the full analysis
     loaded = repo.load_parsed_analysis(page._last_analysis_id)
     assert loaded is not None
-    analysis, meta = loaded
+    analysis, _meta = loaded
     assert analysis.translation.natural
     assert analysis.syntax.segments
 
