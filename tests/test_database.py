@@ -1,4 +1,4 @@
-"""数据库 CRUD、单词去重、历史持久化、设置持久化。"""
+"""Database CRUD, word deduplication, history and settings persistence."""
 
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ def test_mastery_and_review_queue(tmp_path: Path) -> None:
     words = repo.list_words()
     wid = words[0].word_id
     repo.set_mastery("word", wid, MasteryStatus.UNFAMILIAR)
-    # 默认到期是明天，所以 due_items 目前可能为空；把 due_at 改到过去
+    # The default due time is tomorrow, so due_items may be empty; move due_at to the past
     repo.db.conn.execute(
         "UPDATE learning_items SET due_at = datetime('now','localtime','-1 hour') "
         "WHERE item_type = 'word' AND ref_id = ?",
@@ -138,8 +138,8 @@ def test_export_json(tmp_path: Path) -> None:
 
 
 def test_list_phrases_and_grammar_after_ingest(tmp_path: Path) -> None:
-    """回归：list_phrases/list_grammar 曾查询不存在的 created_at 列，
-    知识库页一有短语/语法数据就崩。"""
+    """Regression: list_phrases/list_grammar once queried a nonexistent
+    created_at column and crashed the knowledge page as soon as data existed."""
     repo = _repo(tmp_path)
     parsed = _sample_parsed()
     repo.save_analysis(source_text=parsed["source_text"], parsed=parsed)
@@ -152,12 +152,12 @@ def test_list_phrases_and_grammar_after_ingest(tmp_path: Path) -> None:
 
 
 def test_delete_analysis_keeps_learning_items(tmp_path: Path) -> None:
-    """删除 analysis 后，其 occurrences 级联删除，学习条目不受影响。"""
+    """Deleting an analysis cascades its occurrences; learning items survive."""
     repo = _repo(tmp_path)
     parsed = _sample_parsed()
     aid = repo.save_analysis(source_text=parsed["source_text"], parsed=parsed)
     repo.delete_analysis(aid)
     assert repo.count_analyses() == 0
     assert repo.db.conn.execute("SELECT COUNT(*) FROM word_occurrences").fetchone()[0] == 0
-    # words / learning_items 保留
+    # words / learning_items are kept
     assert repo.db.conn.execute("SELECT COUNT(*) FROM words").fetchone()[0] > 0

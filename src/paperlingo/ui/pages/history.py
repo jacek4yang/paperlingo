@@ -1,4 +1,4 @@
-"""历史记录页：搜索、筛选、收藏、恢复完整分析。"""
+"""History page: search, filters, favorites, restoring a full analysis."""
 
 from __future__ import annotations
 

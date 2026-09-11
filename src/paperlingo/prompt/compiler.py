@@ -1,7 +1,9 @@
-"""PromptCompiler：把 AnalysisRequest 编译成可直接粘贴给 Web AI 的完整 Prompt。"""
+"""PromptCompiler: compiles an AnalysisRequest into a complete prompt ready to
+paste into a web AI."""
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 from paperlingo.domain.analysis import SCHEMA_VERSION, AnalysisRequest
@@ -19,18 +21,18 @@ from paperlingo.prompt.templates import (
     TEMPLATES,
 )
 
-#: 领域 -> AI 角色描述
+#: Domain value -> AI role description (all English; keys are stable identifiers)
 _DOMAIN_ROLES: dict[str, str] = {
-    "自动判断": "论文所属领域的专家（请先根据文本自行判断领域）",
-    "计算机科学": "计算机科学领域的专家",
-    "人工智能": "人工智能领域的专家",
-    "网络": "计算机网络领域的专家",
-    "网络安全": "网络安全领域的专家",
-    "软件工程": "软件工程领域的专家",
-    "系统": "计算机系统领域的专家",
-    "密码学": "密码学领域的专家",
-    "数据库": "数据库领域的专家",
-    "其他": "论文所属领域的专家（请先根据文本自行判断领域）",
+    "auto": "an expert in the paper's field (determine the field from the text yourself first)",
+    "computer_science": "a computer science domain expert",
+    "artificial_intelligence": "an artificial intelligence domain expert",
+    "networking": "a computer networking domain expert",
+    "cybersecurity": "a cybersecurity domain expert",
+    "software_engineering": "a software engineering domain expert",
+    "systems": "a computer systems domain expert",
+    "cryptography": "a cryptography domain expert",
+    "databases": "a database systems domain expert",
+    "other": "an expert in the paper's field (determine the field from the text yourself first)",
 }
 
 
@@ -47,11 +49,11 @@ class PromptCompileError(ValueError):
 
 
 class PromptCompiler:
-    """将分析请求编译为最终 Prompt 文本。"""
+    """Compiles an analysis request into the final prompt text."""
 
     def __init__(self, template_id: str = DEFAULT_TEMPLATE_ID) -> None:
         if template_id not in TEMPLATES:
-            raise PromptCompileError(f"未知模板: {template_id}")
+            raise PromptCompileError(f"未知模板：{template_id}")
         self.template = TEMPLATES[template_id]
 
     # ------------------------------------------------------------------
@@ -78,10 +80,10 @@ class PromptCompiler:
             chunks.append(profile.output_reminder.strip())
 
         text = "\n\n".join(chunks)
-        # 编译结果不应残留未填充的占位符
+        # The compiled result must not leave unfilled placeholders behind.
         leftover = [p for p in self.template.placeholders if "{" + p + "}" in text]
         if leftover:
-            raise PromptCompileError(f"模板存在未填充占位符: {leftover}")
+            raise PromptCompileError(f"模板存在未填充占位符：{leftover}")
 
         return CompiledPrompt(
             text=text,
@@ -92,7 +94,7 @@ class PromptCompiler:
 
     # ------------------------------------------------------------------
     def _build_values(self, req: AnalysisRequest) -> dict[str, str]:
-        # 上下文块
+        # Context block
         ctx_parts: list[str] = []
         if req.previous_context:
             ctx_parts.append(
@@ -104,31 +106,32 @@ class PromptCompiler:
             )
         context_block = "\n\n".join(ctx_parts)
 
-        # 论文信息块
+        # Paper info block
         info_lines: list[str] = []
         if req.paper_title:
-            info_lines.append(f"- 标题: {req.paper_title}")
+            info_lines.append(f"- Title: {req.paper_title}")
         if req.doi_or_url:
             info_lines.append(f"- DOI/URL: {req.doi_or_url}")
         if req.authors:
-            info_lines.append(f"- 作者: {req.authors}")
-        if req.domain and req.domain != "自动判断":
-            info_lines.append(f"- 领域: {req.domain}")
-        paper_info_lines = "\n".join(info_lines) if info_lines else "（未提供）"
+            info_lines.append(f"- Authors: {req.authors}")
+        if req.domain and req.domain != "auto":
+            info_lines.append(f"- Research field: {req.domain}")
+        paper_info_lines = "\n".join(info_lines) if info_lines else "(not provided)"
 
         has_paper_info = bool(req.paper_title or req.doi_or_url or req.authors)
         web_instruction = (
             _WEB_RESEARCH_WITH_INFO if has_paper_info else _WEB_RESEARCH_NO_INFO
         ).strip()
 
-        # 学习者画像：仅在收集到足够的薄弱点信息时才加入 Prompt
+        # Learner profile: only included when enough weakness data was collected.
+        # Always generated in English, e.g. "Weak learning categories: vocabulary=4, grammar=2."
         profile_text = req.known_knowledge_profile.strip()
         knowledge_profile_block = (
             f"{_PROFILE_HEADER}\n{profile_text}" if profile_text else ""
         )
 
         return {
-            "domain_role": _DOMAIN_ROLES.get(req.domain, _DOMAIN_ROLES["自动判断"]),
+            "domain_role": _DOMAIN_ROLES.get(req.domain, _DOMAIN_ROLES["auto"]),
             "web_research_instruction": web_instruction,
             "source_text": req.source_text,
             "context_block": context_block,
@@ -141,15 +144,25 @@ class PromptCompiler:
 
 
 def compile_repair_prompt(error: str, raw_response: str, *, excerpt_limit: int = 3000) -> str:
-    """解析失败时生成的修复 Prompt。"""
+    """Build the repair prompt for a failed parse.
+
+    The raw AI response may contain Chinese; to keep the repair instructions
+    English-only, the excerpt is embedded as an ASCII-safe JSON-escaped string
+    (json.dumps with ensure_ascii=True). This preserves the semantic content of
+    the original response exactly while keeping the prompt language contract.
+    """
     excerpt = raw_response[:excerpt_limit]
     if len(raw_response) > excerpt_limit:
-        excerpt += "\n……（后续内容已省略）"
+        excerpt += "... (the rest was truncated)"
+    excerpt_block = ""
+    if excerpt:
+        escaped = json.dumps(excerpt, ensure_ascii=True)
+        excerpt_block = "Your previous output (excerpt, JSON-escaped):\n" + escaped
     return (
         TEMPLATES[REPAIR_TEMPLATE_ID]
         .parts[0]
-        .replace("{error}", error.strip() or "未知错误")
-        .replace("{raw_response_excerpt}", "你上次的输出（节选）：\n" + excerpt if excerpt else "")
+        .replace("{error}", json.dumps(error.strip() or "unknown error", ensure_ascii=True)[1:-1])
+        .replace("{raw_response_excerpt}", excerpt_block)
         .replace("{schema_version}", SCHEMA_VERSION)
         .strip()
     )

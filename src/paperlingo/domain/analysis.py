@@ -1,10 +1,11 @@
-"""AI 返回结果的结构化 Schema（Pydantic v2）。
+"""Structured schema for AI responses (Pydantic v2).
 
-设计原则：
-- AI 只返回结构化 JSON，绝不返回 HTML / CSS / Markdown / 可执行代码。
-- 所有字段对"现实中 Web AI 能稳定生成的复杂度"友好：几乎一切可缺省，
-  缺省时为空列表 / 空字符串 / null，禁止 AI 为填满 Schema 编造内容。
-- schema 有 version（SCHEMA_VERSION），未来升级时做迁移。
+Design principles:
+- The AI returns structured JSON only; never HTML / CSS / Markdown / executable code.
+- All fields tolerate the complexity real-world web AIs can reliably produce: almost
+  everything is optional, defaulting to empty list / empty string / null. The AI is
+  forbidden from fabricating content just to fill the schema.
+- The schema carries a version (SCHEMA_VERSION); future upgrades migrate here.
 """
 
 from __future__ import annotations
@@ -13,17 +14,18 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-#: 当前 schema 版本。Prompt 中要求 AI 原样带回。
+#: Current schema version. The prompt asks the AI to echo it back.
 SCHEMA_VERSION = "1.0"
 
-#: 单个文本字段的最大长度（防御异常输出）
+#: Maximum length of a single text field (defense against abnormal output)
 MAX_TEXT_LENGTH = 4000
-#: 列表类字段的最大条目数
+#: Maximum number of entries in list-like fields
 MAX_ITEMS = 100
 
 
 class _Base(BaseModel):
-    """公共基类：禁止多余字段报错（宽松），但截断超长字符串。"""
+    """Common base: unknown extra fields tolerated (lenient), over-long strings
+    truncated at the field level by validators where needed."""
 
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
@@ -44,7 +46,8 @@ class SentenceOverview(_Base):
 
 
 class SyntaxSegment(_Base):
-    """原句中的一个片段及其语法角色。text 必须能在原句中找到（用于交互高亮）。"""
+    """One fragment of the original sentence and its grammatical role. `text`
+    must be findable in the source text (used for interactive highlighting)."""
 
     text: str = ""
     role: str = ""
@@ -155,7 +158,7 @@ class WebResearch(_Base):
 
 
 class PaperAnalysis(_Base):
-    """AI 返回的完整分析结果。"""
+    """The complete analysis returned by the AI."""
 
     model_config = ConfigDict(extra="ignore", str_strip_whitespace=True)
 
@@ -177,12 +180,13 @@ class PaperAnalysis(_Base):
     @field_validator("schema_version")
     @classmethod
     def _check_version(cls, v: str) -> str:
-        # 目前只接受 1.x；未来升级时在这里做兼容/迁移入口
+        # Currently only 1.x is accepted; future upgrades add a compat/migration
+        # entry point here.
         if not v:
             return SCHEMA_VERSION
         major = v.split(".", 1)[0]
         if major != "1":
-            raise ValueError(f"不支持的 schema 版本: {v}（当前支持 1.x）")
+            raise ValueError(f"unsupported schema version: {v} (supported: 1.x)")
         return v
 
     @field_validator(
@@ -198,7 +202,7 @@ class PaperAnalysis(_Base):
 
 
 # ---------------------------------------------------------------------------
-# 请求侧模型
+# Request-side models
 
 
 AnalysisDepth = Literal["quick", "standard", "deep"]
@@ -211,7 +215,11 @@ DEPTH_LABELS: dict[AnalysisDepth, str] = {
 
 
 class AnalysisRequest(BaseModel):
-    """一次分析的全部输入，由 PromptCompiler 消费。"""
+    """All input for one analysis; consumed by the PromptCompiler.
+
+    `domain` is a stable English identifier from domain/paper.py DOMAIN_VALUES,
+    never a Chinese display label.
+    """
 
     model_config = ConfigDict(str_strip_whitespace=True)
 
@@ -221,6 +229,6 @@ class AnalysisRequest(BaseModel):
     paper_title: str = ""
     doi_or_url: str = ""
     authors: str = ""
-    domain: str = "自动判断"
+    domain: str = "auto"
     analysis_depth: AnalysisDepth = "standard"
     known_knowledge_profile: str = ""

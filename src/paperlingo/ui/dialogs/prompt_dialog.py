@@ -1,4 +1,4 @@
-"""Prompt / 原始 Response 查看对话框。"""
+"""Dialog for viewing the prompt or the raw AI response."""
 
 from __future__ import annotations
 

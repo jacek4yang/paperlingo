@@ -1,4 +1,4 @@
-"""交互式原句 span 映射。"""
+"""Interactive sentence span mapping."""
 
 from paperlingo.ui.widgets.sentence import find_span
 

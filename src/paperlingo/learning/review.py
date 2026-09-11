@@ -1,25 +1,29 @@
-"""复习调度器。
+"""Review scheduler.
 
-v1 使用内置的简化 SM-2 风格调度（无外部依赖）；
-通过 Scheduler 接口隔离，未来可无痛替换为 FSRS 官方实现。
-调度器与 UI 完全解耦：输入当前状态 + 评分，输出下一次到期时间。
+v1 uses a built-in simplified SM-2-style schedule (no external dependencies);
+the Scheduler interface isolates it so a future FSRS implementation can replace
+it without touching callers. The scheduler is fully decoupled from the UI: it
+takes the current card state plus a rating and returns the next due time.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from paperlingo.domain.learning import Rating
+
+if TYPE_CHECKING:
+    from paperlingo.database.repository import Repository
 
 
 @dataclass
 class CardState:
-    """一张学习卡片的状态（持久化在 learning_items 表）。"""
+    """State of one learning card (persisted in the learning_items table)."""
 
-    stability: float = 0.0  # 记忆稳定度（天）
-    difficulty: float = 0.0  # 难度 1-10
+    stability: float = 0.0  # memory stability (days)
+    difficulty: float = 0.0  # difficulty 1-10
     reps: int = 0
     lapses: int = 0
 
@@ -27,7 +31,7 @@ class CardState:
 @dataclass
 class ScheduleResult:
     interval_days: float
-    due_at: str  # "YYYY-MM-DD HH:MM:SS" 本地时间
+    due_at: str  # "YYYY-MM-DD HH:MM:SS" local time
     stability: float
     difficulty: float
 
@@ -37,23 +41,24 @@ class Scheduler(Protocol):
 
 
 class SimpleScheduler:
-    """SM-2 风格的简易调度器。
+    """Simplified SM-2-style scheduler.
 
-    - 首次复习按评分给 1~4 天；
-    - 稳定度随连续 Good/Easy 增长，Again 重置；
-    - 难度向 [1, 10] 收敛。
+    - The first review grants 1-4 days depending on the rating;
+    - stability grows with consecutive Good/Easy and resets on Again;
+    - difficulty converges into [1, 10].
     """
 
     def next(self, state: CardState, rating: Rating, now: datetime | None = None) -> ScheduleResult:
         now = now or datetime.now()
 
-        # 难度更新：Again +1.5，Hard +0.5，Good -0.2，Easy -0.5，收敛到 [1,10]
+        # Difficulty update: Again +1.5, Hard +0.5, Good -0.2, Easy -0.5,
+        # converging into [1, 10].
         delta = {Rating.AGAIN: 1.5, Rating.HARD: 0.5, Rating.GOOD: -0.2, Rating.EASY: -0.5}[rating]
         difficulty = min(10.0, max(1.0, (state.difficulty or 5.0) + delta))
 
         if rating == Rating.AGAIN:
             stability = 0.5
-            interval = 0.007  # 10 分钟后重来
+            interval = 0.007  # try again in ~10 minutes
         else:
             factor = {Rating.HARD: 1.2, Rating.GOOD: 2.3, Rating.EASY: 3.2}[rating]
             if state.stability <= 0:
@@ -66,7 +71,7 @@ class SimpleScheduler:
 
         stability = max(0.1, min(stability, 365.0 * 2))
         due = now + timedelta(days=interval)
-        # 秒级精度下，不足 1 天的间隔保留小时/分钟
+        # For sub-day intervals keep hour/minute precision.
         return ScheduleResult(
             interval_days=round(interval, 4),
             due_at=due.strftime("%Y-%m-%d %H:%M:%S"),
@@ -75,7 +80,8 @@ class SimpleScheduler:
         )
 
 
-#: 模块级默认调度器；未来替换 FSRS 时只需改变这里
+#: Module-level default scheduler; replacing it with FSRS only requires
+#: changing this reference.
 _default_scheduler: Scheduler = SimpleScheduler()
 
 
@@ -88,23 +94,13 @@ def set_scheduler(s: Scheduler) -> None:
     _default_scheduler = s
 
 
-def review_item(repo, learning_item_id: int, rating: Rating) -> bool:
-    """从数据库取卡片状态，调度下一次复习并写回。成功返回 True。"""
-    from paperlingo.database.repository import Repository  # 局部导入避免循环
-
-    assert isinstance(repo, Repository)
-    row = repo.db.conn.execute(
-        "SELECT stability, difficulty, reps, lapses FROM learning_items WHERE id = ?",
-        (learning_item_id,),
-    ).fetchone()
-    if row is None:
+def review_item(repo: Repository, learning_item_id: int, rating: Rating) -> bool:
+    """Load the card state from the database, schedule the next review, and
+    write it back. Returns True on success."""
+    state_row = repo.get_card_state(learning_item_id)
+    if state_row is None:
         return False
-    state = CardState(
-        stability=float(row["stability"] or 0.0),
-        difficulty=float(row["difficulty"] or 0.0),
-        reps=int(row["reps"] or 0),
-        lapses=int(row["lapses"] or 0),
-    )
+    state = CardState(**state_row)
     result = get_scheduler().next(state, rating)
     repo.log_review(
         learning_item_id,

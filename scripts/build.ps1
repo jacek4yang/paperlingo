@@ -1,7 +1,6 @@
-# PaperLingo Windows 构建脚本
-# 使用 uv 管理整个流程：检查 → sync → 测试 → 清理 → PyInstaller → 验证 exe
-# 用法（PowerShell）：
-#   .\scripts\build.ps1
+# PaperLingo Windows build script.
+# uv drives the whole flow: checks -> sync -> tests -> clean -> PyInstaller -> verify exe.
+# Usage (PowerShell): .\scripts\build.ps1
 
 $ErrorActionPreference = "Stop"
 Set-Location (Split-Path -Parent $PSScriptRoot)
@@ -11,56 +10,65 @@ function Fail([string]$msg) {
     exit 1
 }
 
-Write-Host "==> 检查 uv ..."
+Write-Host "==> Checking uv ..."
 if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
-    Fail "未找到 uv，请先安装 uv。"
+    Fail "uv not found. Install it first: https://docs.astral.sh/uv/"
 }
 uv --version
 
-Write-Host "==> 检查 pyproject.toml ..."
+Write-Host "==> Checking pyproject.toml ..."
 if (-not (Test-Path "pyproject.toml")) {
-    Fail "当前目录没有 pyproject.toml，请在项目根目录运行。"
+    Fail "pyproject.toml not found; run this script from the repository root."
 }
 
-Write-Host "==> uv sync ..."
-uv sync
-if ($LASTEXITCODE -ne 0) { Fail "uv sync 失败" }
+Write-Host "==> uv sync --frozen ..."
+uv sync --frozen
+if ($LASTEXITCODE -ne 0) { Fail "uv sync failed" }
 
-Write-Host "==> 运行测试 (uv run pytest) ..."
-uv run pytest
-if ($LASTEXITCODE -ne 0) { Fail "测试未通过，停止打包" }
-
-Write-Host "==> 运行 Lint (uv run ruff check src tests) ..."
+Write-Host "==> Lint (uv run ruff check src tests) ..."
 uv run ruff check src tests
-if ($LASTEXITCODE -ne 0) { Fail "ruff 检查未通过，停止打包" }
+if ($LASTEXITCODE -ne 0) { Fail "ruff check failed; refusing to package" }
 
-Write-Host "==> 清理旧的 build / dist ..."
+Write-Host "==> Tests (uv run pytest) ..."
+uv run pytest
+if ($LASTEXITCODE -ne 0) { Fail "tests failed; refusing to package" }
+
+Write-Host "==> Removing old build / dist ..."
 if (Test-Path "build") { Remove-Item -Recurse -Force "build" }
 if (Test-Path "dist") { Remove-Item -Recurse -Force "dist" }
 
-Write-Host "==> PyInstaller 打包 ..."
+Write-Host "==> Running PyInstaller (one-folder) ..."
 uv run pyinstaller --noconfirm paperlingo.spec
-if ($LASTEXITCODE -ne 0) { Fail "PyInstaller 失败" }
+if ($LASTEXITCODE -ne 0) { Fail "PyInstaller failed" }
 
 $exe = "dist\PaperLingo\PaperLingo.exe"
 if (-not (Test-Path $exe)) {
-    Fail "未找到 $exe"
+    Fail "expected executable not found: $exe"
 }
 
-Write-Host "==> 验证 exe 能启动 ..."
-# 启动后立刻用 --help 风格探测：窗口应用无法 --help，改为短超时启动后结束
+Write-Host "==> Smoke launch of the packaged exe ..."
+# A GUI app has no --help; start it, wait briefly, and stop it. Also verify the
+# portable contract: the database must be created beside the exe, never bundled.
+$dbInDist = "dist\PaperLingo\paperlingo.db"
+if (Test-Path $dbInDist) { Remove-Item -Force $dbInDist, "$dbInDist-wal", "$dbInDist-shm" -ErrorAction SilentlyContinue }
 $proc = Start-Process -FilePath (Resolve-Path $exe) -PassThru -WindowStyle Hidden
-Start-Sleep -Seconds 4
+Start-Sleep -Seconds 5
 if ($proc.HasExited -and $proc.ExitCode -ne 0) {
-    Fail "exe 启动后立刻异常退出，退出码 $($proc.ExitCode)"
+    Fail "packaged exe exited immediately with code $($proc.ExitCode)"
 }
-if (-not $proc.HasExited) {
-    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-    Write-Host "exe 已成功启动（已结束探测进程）"
+if ($proc.HasExited) {
+    Write-Host "packaged exe started and exited on its own (code $($proc.ExitCode))"
 } else {
-    Write-Host "exe 已启动并自行退出（退出码 $($proc.ExitCode)）"
+    Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+    Write-Host "packaged exe launched successfully (stopped the probe process)"
+}
+if (-not (Test-Path $dbInDist)) {
+    Write-Host "note: paperlingo.db was not created during the short probe (it is created on first interactive run); checking that no dev DB was bundled:"
+    Fail "portable contract violated? paperlingo.db missing beside the exe after launch"
+} else {
+    Write-Host "portable DB verified beside the exe: $dbInDist"
 }
 
 Write-Host ""
-Write-Host "构建完成: $exe" -ForegroundColor Green
-Write-Host "把 dist\PaperLingo\ 整个目录拷给用户即可运行，无需安装 Python / Qt / uv。"
+Write-Host "Build finished: $exe" -ForegroundColor Green
+Write-Host "Ship the whole dist\PaperLingo\ directory - no Python / Qt / uv needed."

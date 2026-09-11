@@ -1,4 +1,4 @@
-"""AI Response 解析器测试。"""
+"""Response parser tests."""
 
 from __future__ import annotations
 

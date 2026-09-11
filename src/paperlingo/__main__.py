@@ -1,4 +1,4 @@
-"""允许 `python -m paperlingo` 启动。"""
+"""Allows starting via `python -m paperlingo`."""
 
 from paperlingo.app import run
 

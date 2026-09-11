@@ -1,6 +1,8 @@
-"""应用设置（持久化在 SQLite settings 表）。
+"""Application settings, persisted in the SQLite settings table.
 
-提供类型化访问；未知/缺失值回退到默认。
+Provides typed access; unknown or missing values fall back to defaults. Note:
+there is deliberately no database-path setting — the database location is an
+explicit portable contract (beside the executable; see AGENTS.md).
 """
 
 from __future__ import annotations
@@ -24,7 +26,6 @@ class AppSettings:
     font_scale: float = 1.0
     default_depth: AnalysisDepth = "standard"
     default_profile: str = DEFAULT_PROFILE_ID
-    db_path: str = ""
 
     @classmethod
     def load(cls, repo: Repository) -> AppSettings:
@@ -39,9 +40,8 @@ class AppSettings:
         except ValueError:
             s.font_scale = 1.0
         depth = get("default_depth", s.default_depth)
-        s.default_depth = depth if depth in DEPTH_LABELS else "standard"
+        s.default_depth = depth if depth in DEPTH_LABELS else "standard"  # type: ignore[assignment]
         s.default_profile = get("default_profile", s.default_profile)
-        s.db_path = get("db_path", "")
         return s
 
     def save(self, repo: Repository) -> None:
@@ -49,4 +49,3 @@ class AppSettings:
         repo.set_setting("font_scale", str(self.font_scale))
         repo.set_setting("default_depth", self.default_depth)
         repo.set_setting("default_profile", self.default_profile)
-        repo.set_setting("db_path", self.db_path)

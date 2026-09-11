@@ -1,34 +1,39 @@
-"""论文信息领域模型。"""
+"""Paper metadata domain model."""
 
 from __future__ import annotations
 
 from pydantic import BaseModel
 
-#: 研究领域下拉框的固定选项（"自动判断" 表示交给 AI）
-DOMAINS: list[str] = [
-    "自动判断",
-    "计算机科学",
-    "人工智能",
-    "网络",
-    "网络安全",
-    "软件工程",
-    "系统",
-    "密码学",
-    "数据库",
-    "其他",
+#: Fixed options for the research-field combo box as (stable English value,
+#: Simplified Chinese display label) pairs. "auto" means the AI decides the field.
+DOMAIN_OPTIONS: list[tuple[str, str]] = [
+    ("auto", "自动判断"),
+    ("computer_science", "计算机科学"),
+    ("artificial_intelligence", "人工智能"),
+    ("networking", "计算机网络"),
+    ("cybersecurity", "网络安全"),
+    ("software_engineering", "软件工程"),
+    ("systems", "计算机系统"),
+    ("cryptography", "密码学"),
+    ("databases", "数据库"),
+    ("other", "其他"),
 ]
+
+DOMAIN_VALUES: list[str] = [value for value, _ in DOMAIN_OPTIONS]
+
+DEFAULT_DOMAIN = DOMAIN_VALUES[0]
 
 
 class PaperInfo(BaseModel):
-    """用户可选补充的论文元信息。"""
+    """Optional paper metadata supplied by the user."""
 
     title: str = ""
     doi_or_url: str = ""
     authors: str = ""
-    domain: str = DOMAINS[0]
+    domain: str = DEFAULT_DOMAIN
 
     def is_empty(self) -> bool:
         return not (self.title.strip() or self.doi_or_url.strip() or self.authors.strip())
 
     def domain_specified(self) -> bool:
-        return bool(self.domain) and self.domain != DOMAINS[0]
+        return bool(self.domain) and self.domain != DEFAULT_DOMAIN

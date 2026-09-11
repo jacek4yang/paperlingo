@@ -1,7 +1,8 @@
-"""主题系统：Light / Dark 两套 QSS，跟随系统切换。
+"""Theme system: Light / Dark QSS sets, optionally following the system.
 
-设计目标：克制现代（Windows 11 / Linear / Notion 之间的感觉）——
-大面积留白、极少边框、8~12px 圆角、清晰层级、无刺眼渐变。
+Design goal: restrained and modern (somewhere between Windows 11 / Linear /
+Notion) — large whitespace, few borders, 8-12px radii, clear hierarchy, no
+harsh gradients.
 """
 
 from __future__ import annotations
@@ -14,7 +15,7 @@ THEME_DARK = "dark"
 
 
 def system_theme() -> str:
-    """检测 Windows 系统主题（注册表 AppsUseLightTheme）。"""
+    """Detect the Windows system theme (registry AppsUseLightTheme)."""
     if sys.platform != "win32":
         return THEME_LIGHT
     try:
@@ -32,37 +33,37 @@ def system_theme() -> str:
 
 
 # ---------------------------------------------------------------------------
-# 调色板
+# Palette
 
 
 @dataclass
 class Palette:
-    """主题调色板（非 frozen：主题切换时 MainWindow 会原地更新共享实例）。"""
+    """Theme palette (not frozen: MainWindow updates the shared instance in place on switch)."""
 
     name: str
 
-    # 基础
-    bg: str          # 窗口背景
-    bg_card: str     # 卡片背景
-    bg_input: str    # 输入框背景
-    bg_hover: str    # hover 背景
-    bg_selected: str  # 选中背景
-    border: str      # 边框
-    divider: str     # 分隔线
+    # Base surfaces
+    bg: str          # window background
+    bg_card: str     # card background
+    bg_input: str    # input background
+    bg_hover: str    # hover background
+    bg_selected: str  # selected background
+    border: str      # border
+    divider: str     # divider
 
-    # 文本
-    text: str        # 主文本
+    # Text
+    text: str        # primary text
     text_secondary: str
     text_tertiary: str
     text_disabled: str
     text_on_accent: str
 
-    # 主色（克制的蓝）
+    # Accent (restrained blue)
     accent: str
     accent_hover: str
     accent_soft: str  # 主色浅底
 
-    # 语义色（低饱和）
+    # Semantic colors (low saturation)
     success: str
     warning: str
     danger: str
@@ -70,7 +71,7 @@ class Palette:
     warning_soft: str
     danger_soft: str
 
-    # 语法角色色（语义高亮，克制）
+    # Grammar-role colors (restrained semantic highlighting)
     role_subject: str
     role_predicate: str
     role_object: str
@@ -152,7 +153,7 @@ def palette(theme: str) -> Palette:
 
 
 def build_qss(p: Palette) -> str:
-    """生成整套 QSS。所有颜色来自 Palette，不出现裸色值。"""
+    """Build the full QSS. Every color comes from the Palette; no raw values."""
     return f"""
 * {{
     outline: none;
@@ -294,6 +295,49 @@ QPushButton[role="chip"]:checked {{
     border-color: {p.accent};
     color: {p.accent};
     font-weight: 600;
+}}
+QPushButton[role="nav"] {{
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 2px;
+    color: {p.text_secondary};
+}}
+QPushButton[role="nav"]:hover {{
+    background: {p.bg_hover};
+    color: {p.text};
+}}
+QPushButton[role="nav"]:checked {{
+    background: {p.bg_selected};
+    color: {p.accent};
+    font-weight: 600;
+}}
+QPushButton[role="segchip"] {{
+    background: {p.bg_card};
+    border: 1px solid {p.border};
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-weight: 600;
+    color: {p.text};
+}}
+QPushButton[role="segchip"]:hover {{
+    background: {p.bg_hover};
+}}
+QPushButton[role="segchip"]:checked {{
+    background: {p.accent_soft};
+    border-color: {p.accent};
+    color: {p.accent};
+}}
+QFrame#navRail {{
+    background: transparent;
+    border-right: 1px solid {p.divider};
+}}
+QLabel[role="logo"] {{
+    font-weight: 700;
+    font-size: 16px;
+    padding: 4px 0 10px 0;
+    color: {p.accent};
+    background: transparent;
 }}
 
 /* ---------- 卡片 ---------- */

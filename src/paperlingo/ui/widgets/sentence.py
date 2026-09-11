@@ -1,8 +1,11 @@
-"""交互式原句展示：把 AI 返回的 segment / clause 映射回原文，做语义高亮。
+"""Interactive source-sentence display: maps AI segments/clauses onto the
+exact source text for semantic highlighting.
 
-原则：
-- 不修改原文字符；映射失败宁可不高亮，绝不错误匹配。
-- 鼠标 hover 显示角色 tooltip；点击发出信号，由外部滚动到对应卡片。
+Principles:
+- The source text is never modified; if mapping fails, skip highlighting
+  rather than risk a wrong match.
+- Hovering shows a role tooltip; clicking emits a signal for the outside
+  to route (e.g. scroll to a card).
 """
 
 from __future__ import annotations
@@ -14,7 +17,7 @@ from PyQt6.QtWidgets import QLabel, QTextBrowser, QVBoxLayout, QWidget
 
 from paperlingo.domain.analysis import Clause, SyntaxSegment
 
-#: 角色 -> 调色板键
+#: Role -> palette color key
 _ROLE_COLORS = {
     "subject": "role_subject",
     "predicate": "role_predicate",
@@ -39,7 +42,7 @@ _ROLE_ZH = {
 
 
 def _norm(s: str) -> str:
-    """规范化用于匹配：NFC + 折叠空白。"""
+    """Normalize for matching: NFC + whitespace folding."""
     return " ".join(unicodedata.normalize("NFC", s).split())
 
 
@@ -48,10 +51,11 @@ def _fold(s: str) -> str:
 
 
 def find_span(source: str, needle: str) -> tuple[int, int] | None:
-    """在原文中精确查找 needle 的位置，返回 (start, end)。
+    """Locate needle in the source exactly; returns (start, end).
 
-    依次尝试：原文精确、折叠空白精确、忽略大小写、折叠空白+忽略大小写。
-    都失败返回 None（宁可不高亮，也不错配）。
+    Tries, in order: exact, whitespace-folded exact, case-insensitive,
+    folded + case-insensitive. Returns None when all fail (skipping the
+    highlight is preferred over a wrong match).
     """
     if not needle.strip():
         return None
@@ -60,25 +64,25 @@ def find_span(source: str, needle: str) -> tuple[int, int] | None:
     src_fold = _fold(source)
     nd_fold = _fold(needle)
 
-    # 1. 原文精确匹配
+    # 1. exact match in the source
     idx = source.find(needle)
     if idx >= 0:
         return idx, idx + len(needle)
-    # 2. 规范化空白后在规范化原文中找，再映射回原索引
+    # 2. match in whitespace-normalized text, then map back to source indexes
     pos = src_norm.find(nd_norm)
     if pos >= 0:
         return _map_norm_pos(source, src_norm, pos, len(nd_norm))
-    # 3. 忽略大小写
+    # 3. case-insensitive
     pos = src_fold.find(nd_fold)
     if pos >= 0:
-        # src_fold 与 source 等长（casefold 大多数情况等长；为安全起见重新映射）
+        # src_fold usually has the same length as source; remap defensively
         return _map_casefold_pos(source, src_fold, pos, len(nd_fold))
     return None
 
 
 def _map_norm_pos(source: str, src_norm: str, pos: int, length: int) -> tuple[int, int] | None:
-    """把规范化文本中的位置映射回原文位置。"""
-    # 构建规范化文本 -> 原文索引的映射
+    """Map a position in normalized text back to the source position."""
+    # Build a normalized-text -> source-index mapping
     norm_to_src: list[int] = []
     building = ""
     for i, ch in enumerate(source):
@@ -86,11 +90,12 @@ def _map_norm_pos(source: str, src_norm: str, pos: int, length: int) -> tuple[in
         for nc in norm_chars:
             building += nc
             norm_to_src.append(i)
-    # 折叠空白的影响：_norm 把连续空白折叠为一个空格，我们近似处理：
-    # 直接对 src_norm 与 building 比对，若一致则用映射
+    # Whitespace folding: _norm collapses runs of whitespace into one space;
+    # compare src_norm with the built mapping and use it when they agree
     folded = " ".join(building.split())
     if folded != src_norm:
-        # 复杂折叠场景，退化为按比例估算（安全性足够：仅影响高亮，不影响数据）
+        # Complex folding: fall back to a direct position estimate (safe: only
+        # affects highlighting, never the data)
         start = min(len(source) - 1, pos)
         end = min(len(source), pos + length)
         return start, end
@@ -147,7 +152,7 @@ class InteractiveSentenceWidget(QWidget):
             return
         self._hint.show()
 
-        # 1) 从句高亮（先处理，层级更低）
+        # 1) clause highlights first (coarser granularity)
         clause_hits: list[tuple[int, int, str]] = []
         for c in clauses:
             if not c.text.strip():
@@ -158,7 +163,7 @@ class InteractiveSentenceWidget(QWidget):
             type_zh = c.type_zh or _ROLE_ZH.get(c.type, "从句")
             clause_hits.append((span[0], span[1], type_zh))
 
-        # 2) segment 高亮
+        # 2) segment highlights
         seg_hits: list[tuple[int, int, str, str]] = []
         for s in segments:
             if not s.text.strip():
@@ -170,7 +175,7 @@ class InteractiveSentenceWidget(QWidget):
             role_zh = s.role_zh or _ROLE_ZH.get(s.role.lower(), s.role)
             seg_hits.append((span[0], span[1], color_key, role_zh))
 
-        # 冲突处理：segment 优先于从句（更细粒度）
+        # Conflict handling: segments win over clauses (finer granularity)
         def overlaps(a: tuple[int, int], b: tuple[int, int]) -> bool:
             return a[0] < b[1] and b[0] < a[1]
 
@@ -191,7 +196,8 @@ class InteractiveSentenceWidget(QWidget):
         seg_hits: list[tuple[int, int, str, str]],
         word_spans: dict[str, tuple[str, str]],
     ) -> str:
-        """把命中区间包上 <a> 锚点与颜色 span。所有 HTML 由本程序构造。"""
+        """Wrap matched ranges in <a> anchors and colored spans. All HTML is
+    constructed by this program; source text is escaped before inclusion."""
         events: list[tuple[int, int, str, str]] = []  # (start, end, kind, payload)
         for s, e, tz in clause_hits:
             events.append((s, e, "clause", tz))
@@ -201,10 +207,10 @@ class InteractiveSentenceWidget(QWidget):
             span = find_span(source, surface)
             if span is None:
                 continue
-            # 单词优先级最高（最细）
+            # words have the highest priority (finest)
             events.append((span[0], span[1], "word", f"{surface}|{color_key}|{info}"))
 
-        # 按起点排序，过滤重叠（保留更细粒度：word > seg > clause）
+        # Sort by start and drop overlaps (keep the finest: word > seg > clause)
         priority = {"word": 3, "seg": 2, "clause": 1}
         events.sort(key=lambda ev: (ev[0], -priority[ev[2]], -(ev[1] - ev[0])))
         accepted: list[tuple[int, int, str, str]] = []

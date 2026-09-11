@@ -1,7 +1,8 @@
-"""数据库版本迁移机制。
+"""Database schema versioning.
 
-每次结构变更追加一个 migration 函数，MIGRATIONS 顺序即版本号（从 1 开始）。
-user_version 记录当前版本，启动时自动按序执行缺失的迁移。
+Each schema change appends one migration function; the MIGRATIONS order defines
+the version number (starting at 1). PRAGMA user_version records the current
+version; startup runs any missing migrations in order.
 """
 
 from __future__ import annotations
@@ -167,14 +168,24 @@ CREATE TABLE IF NOT EXISTS review_logs (
 CREATE INDEX IF NOT EXISTS idx_review_logs_item ON review_logs(learning_item_id);
 """
 
-#: 迁移列表：索引即版本号 - 1。MIGRATIONS[0] 把数据库从 0 升到 1。
-MIGRATIONS: list[str] = [MIGRATION_1]
+#: v2: unfinished reading state (drafts) moves into SQLite so the portable app
+#: keeps all user state in the single database (replaces the AppData draft.json).
+MIGRATION_2 = """
+CREATE TABLE IF NOT EXISTS drafts (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    payload TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+);
+"""
+
+#: Migration list: index = version - 1. MIGRATIONS[0] upgrades the database from 0 to 1.
+MIGRATIONS: list[str] = [MIGRATION_1, MIGRATION_2]
 
 CURRENT_DB_VERSION = len(MIGRATIONS)
 
 
 def migrate(conn: sqlite3.Connection) -> None:
-    """把 conn 指向的数据库升级到最新版本。"""
+    """Upgrade the database behind conn to the latest version."""
     current = conn.execute("PRAGMA user_version").fetchone()[0]
     for version in range(current, CURRENT_DB_VERSION):
         conn.executescript(MIGRATIONS[version])

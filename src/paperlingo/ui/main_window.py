@@ -1,4 +1,4 @@
-"""主窗口：左侧 Navigation Rail + 页面栈 + 主题管理。"""
+"""Main window: left navigation rail + page stack + theme management."""
 
 from __future__ import annotations
 
@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 from paperlingo.database.db import Database
 from paperlingo.database.repository import Repository
 from paperlingo.services.settings import AppSettings
+from paperlingo.ui import strings_zh_cn as s
 from paperlingo.ui.pages.history import HistoryPage
 from paperlingo.ui.pages.knowledge import KnowledgePage
 from paperlingo.ui.pages.reading import ReadingPage
@@ -40,7 +41,7 @@ class MainWindow(QMainWindow):
         self.resize(1280, 820)
         self.setMinimumSize(960, 640)
 
-        # 共享的可变调色板（主题切换时原地更新）
+        # Shared mutable palette (updated in place on theme switch)
         self.palette_obj = palette(self._effective_theme())
 
         central = QWidget()
@@ -49,9 +50,9 @@ class MainWindow(QMainWindow):
         root.setSpacing(0)
         self.setCentralWidget(central)
 
-        # ---------------- Navigation Rail ----------------
+        # ---------------- Navigation rail ----------------
         rail = QFrame()
-        rail.setFixedWidth(88)
+        rail.setFixedWidth(96)
         rail.setObjectName("navRail")
         rail_v = QVBoxLayout(rail)
         rail_v.setContentsMargins(8, 18, 8, 18)
@@ -59,38 +60,34 @@ class MainWindow(QMainWindow):
 
         logo = QLabel("PL")
         logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        logo.setStyleSheet("font-weight: 700; font-size: 16px; padding: 4px 0 10px 0;")
+        logo.setProperty("role", "logo")
         rail_v.addWidget(logo)
 
         self._nav_buttons: dict[str, QPushButton] = {}
         for key, label in (
-            ("reading", "阅读"),
-            ("history", "历史"),
-            ("knowledge", "知识"),
-            ("review", "复习"),
+            ("reading", s.NAV_READING),
+            ("history", s.NAV_HISTORY),
+            ("knowledge", s.NAV_KNOWLEDGE),
+            ("review", s.NAV_REVIEW),
         ):
             b = QPushButton(label)
+            b.setProperty("role", "nav")
             b.setCheckable(True)
             b.setCursor(Qt.CursorShape.PointingHandCursor)
-            b.setStyleSheet(
-                "text-align: center; padding: 10px 2px; border: none; border-radius: 10px;"
-            )
             b.clicked.connect(lambda _=False, k=key: self.switch_page(k))
             rail_v.addWidget(b)
             self._nav_buttons[key] = b
 
         rail_v.addStretch(1)
-        self._settings_btn = QPushButton("设置")
+        self._settings_btn = QPushButton(s.NAV_SETTINGS)
+        self._settings_btn.setProperty("role", "nav")
         self._settings_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._settings_btn.setStyleSheet(
-            "text-align: center; padding: 10px 2px; border: none; border-radius: 10px;"
-        )
         self._settings_btn.clicked.connect(self._open_settings)
         rail_v.addWidget(self._settings_btn)
 
         root.addWidget(rail)
 
-        # ---------------- 页面栈 ----------------
+        # ---------------- Page stack ----------------
         self.stack = QStackedWidget()
         root.addWidget(self.stack, 1)
 
@@ -104,7 +101,7 @@ class MainWindow(QMainWindow):
         ):
             self.stack.addWidget(page)
 
-        # 信号
+        # Signals
         self.history_page.restore_requested.connect(self._restore_analysis)
         self.history_page.reanalyze_requested.connect(self._reanalyze)
         self.reading_page.analysis_saved.connect(lambda _id: self._refresh_data_pages())
@@ -117,7 +114,7 @@ class MainWindow(QMainWindow):
         return system_theme() if key == "system" else key
 
     def apply_theme(self, theme_key: str, font_scale: float = 1.0) -> None:
-        """切换主题并重新应用 QSS；palette 对象原地更新。"""
+        """Switch theme and re-apply QSS; the palette object updates in place."""
         self._theme_key = theme_key
         effective = system_theme() if theme_key == "system" else theme_key
         new_p = palette(effective)
@@ -142,7 +139,7 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentIndex(idx)
         for k, b in self._nav_buttons.items():
             b.setChecked(k == key)
-        # 数据页进入时刷新
+        # Refresh data pages on entry
         if key == "history":
             self.history_page.refresh()
         elif key == "knowledge":
@@ -184,7 +181,7 @@ class MainWindow(QMainWindow):
 
 
 def _scale_font_sizes(qss: str, scale: float) -> str:
-    """按比例缩放 QSS 中的主要字号。"""
+    """Scale the font sizes in the QSS proportionally."""
     import re
 
     def repl(m: re.Match) -> str:

@@ -1,7 +1,8 @@
-"""轻量日志：写入用户数据目录 logs/paperlingo.log（Windows: %LOCALAPPDATA%/PaperLingo/logs）。
+"""Lightweight logging: writes to logs/paperlingo.log inside the application
+data directory (beside the exe when packaged, project root in development).
 
-只记录关键错误（启动 / 数据库 / 解析 / ingest / 导出），不记录论文正文。
-标准库实现，按大小滚动（5 个文件 × 1MB）。
+Records key errors only (startup / database / parsing / ingest / export); never
+paper content. Standard-library implementation, size-rotated (5 files x 1MB).
 """
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ import logging
 import logging.handlers
 from pathlib import Path
 
-from paperlingo.database.db import default_data_dir
+from paperlingo.database.db import application_data_dir
 
 _LOG_FILENAME = "paperlingo.log"
 _MAX_BYTES = 1_000_000
@@ -20,11 +21,11 @@ _configured = False
 
 
 def logs_dir() -> Path:
-    return default_data_dir() / "logs"
+    return application_data_dir() / "logs"
 
 
 def setup_logging(level: int = logging.INFO) -> Path:
-    """初始化根 logger。返回日志文件路径（供开发定位）。"""
+    """Initialize the root logger. Returns the log file path (for development)."""
     global _configured
     log_file = logs_dir() / _LOG_FILENAME
     if _configured:
