@@ -2,37 +2,71 @@
 
 把论文中没看懂的英文放到这里。我们不只翻译它，还会把它拆开讲明白。
 
-PaperLingo 是一个面向中文母语论文阅读者的 Windows 桌面工具：把难懂的英文学术论文句子拆解成**精准翻译 + 句子结构 + 语法 + 单词 + 短语 + 学术表达 + 专业概念 + 阅读思路**，并把阅读过程沉淀成个人英语知识库。
+PaperLingo 是一个面向中文母语论文阅读者的 Windows 桌面工具：把难懂的英文学术论文句子拆解成**精准翻译 + 句子结构 + 语法 + 单词 + 短语 + 学术表达 + 专业概念 + 阅读思路**，并把阅读过程沉淀成个人英语知识库，供长期复习。
 
-## 工作流
+## 为什么做这个工具
+
+读论文最大的障碍往往不是"单词不认识"，而是**长难句拆不开**：从句套从句、指代不清、专业词在语境里的含义和字典义完全不同。机器翻译给不了结构，语法书给不了语境，词典给不了"这句话里它是什么意思"。
+
+PaperLingo 的思路是：让强大的 Web AI（ChatGPT / Claude / Grok / Gemini）做分析，让 PaperLingo 负责**把分析结果变成一个可交互、可积累、可复习的学习界面**。你不需要任何 API Key，只需要一个能联网的 AI 对话框。
+
+## 核心使用流程
 
 ```text
-输入论文英文 → 生成 Prompt → 复制到 ChatGPT / Claude / Grok / Gemini 等Web AI
-→ AI 返回 JSON → 粘贴回 PaperLingo → 交互式拆解展示 → 收藏知识点 → 长期复习
+粘贴论文英文 → 生成英文 Prompt → 复制到 Web AI
+→ AI 返回 JSON → 粘贴回 PaperLingo → 解析校验
+→ 交互式学习界面（概览 / 结构 / 语法 / 词汇 / 表达 / 概念）
+→ 知识沉淀 → 间隔复习
 ```
 
-第一版不依赖任何 LLM API——你只需要一个能联网的 Web AI 对话框。
+第一版完全不依赖 LLM API——整个数据流是：**PaperLingo → 剪贴板 → 你的 Web AI → 剪贴板 → PaperLingo**。
 
-## 当前功能
+## 主要功能
 
-- **阅读页**：粘贴英文原句/段落（支持上下文、论文标题/DOI、研究领域、分析深度），一键生成并复制结构化 Prompt
-- **结果解析**：粘贴 Web AI 返回内容，自动提取 JSON（支持 Markdown 围栏、前后噪声文本、BOM、常见截断），Pydantic 严格校验，失败时给出错误位置与"复制修复 Prompt"
-- **交互式句子**：原句按语法角色着色（主语/谓语/宾语/从句……），悬停查看，点击跳转对应卡片
-- **渐进式展示**：先翻译 + 核心含义 + 句子主干，再展开结构、语法、单词、短语、学术表达、指代、概念、易错理解
-- **知识库**：单词/短语/语法/学术表达/概念/句型自动沉淀，同一条目去重并累计出现次数、来源论文
-- **复习**：认识/不熟/不会三态标记，不熟与不会进入队列，SM-2 风格间隔复习（接口抽象，未来可换 FSRS）
-- **历史记录**：全文搜索、按论文筛选、收藏、恢复完整分析界面、重新分析
-- **草稿自动保存**：页面切换、异常退出不丢原文
-- **主题**：浅色 / 深色 / 跟随系统，高 DPI 支持
+- **三步式阅读流程**：输入英文 → 生成提示词 / 粘贴 AI 结果 → 理解与学习，每一步界面只聚焦一件事
+- **Prompt 工程**：针对 ChatGPT / Claude / Grok / Gemini 生成结构化英文提示词（分析深度可选：快速理解 / 标准分析 / 深度学习），可结合论文标题 / DOI / 研究领域触发 AI 联网核实术语
+- **容错解析**：粘贴 Web AI 返回内容后自动提取 JSON（支持 Markdown 围栏、前后噪声文本、BOM、常见截断、尾逗号等**仅形式级**修复），Pydantic 严格校验；解析失败时给出错误位置，并提供可复制回 AI 的"修复提示词"（只修语法、绝不改语义）
+- **渐进式结果展示**：先看懂句子（原句 + 自然翻译 + 核心含义 + 句子主干），再按需点击「概览 / 结构 / 语法 / 词汇 / 表达 / 概念」分栏深入
+- **交互式句子结构**：原句按语法角色标注，点击片段即可查看它的作用、修饰关系和读法；无法可靠映射回原文的片段不会被高亮，绝不错配
+- **列表 + 详情的知识浏览**：单词、语法、表达都采用紧凑列表 + 点击查看详情的方式，而不是一堆展开的大卡片
+- **知识库**：分析过的单词（按"词元 + 词性"去重）、短语、语法、学术表达、概念、句型自动沉淀，累计出现次数与来源论文
+- **复习**：认识 / 不熟 / 不会三态标记，不熟与不会进入队列，SM-2 风格间隔复习（忘记 / 困难 / 记得 / 熟练四档评分，调度器接口抽象，未来可替换为 FSRS）
+- **历史记录**：全文搜索、按论文筛选、收藏、恢复完整分析界面、用原文重新生成 Prompt
+- **草稿自动保存**：未完成的阅读状态保存在本地数据库中，退出不丢
+- **主题**：浅色 / 深色 / 跟随系统，字体大小可调，高 DPI 支持
 
-## 截图
+## 界面结构
 
-（见 `assets/screenshots/`）
+```text
+┌──────────────────────────────────────────────┐
+│ 阅读入口（主流程）                             │
+│  Step 1  读懂这句话 —— 大输入框 + 字数统计      │
+│  Step 2  提示词已生成 → 复制提示词 / 粘贴 AI 结果│
+│  Step 3  概览 | 结构 | 语法 | 词汇 | 表达 | 概念 │
+├──────┬───────────────────────────────────────┤
+│ 阅读  │                                       │
+│ 历史  │           当前页面内容                  │
+│ 知识库│   （历史 / 知识库 / 复习 / 设置）        │
+│ 复习  │                                       │
+│ 设置  │                                       │
+└──────┴───────────────────────────────────────┘
+```
+
+## 技术栈
+
+| 层 | 技术 |
+| --- | --- |
+| 语言 / 运行时 | Python 3.13+，[uv](https://docs.astral.sh/uv/) 管理 |
+| 界面 | PyQt6（Qt Widgets）+ QSS 主题 |
+| 数据 | SQLite（Python 标准库 `sqlite3`），版本化迁移 |
+| 校验 | Pydantic v2 |
+| 测试 / 检查 | pytest + pytest-qt，ruff |
+| 打包 | PyInstaller（one-folder，免安装绿色目录） |
 
 ## 开发环境
 
 - Windows 10/11
-- [uv](https://docs.astral.sh/uv/)（唯一的包管理工具，不需要手动激活虚拟环境，不需要单独安装 Python 之外的任何东西）
+- [uv](https://docs.astral.sh/uv/)（唯一的包管理工具；不需要手动激活虚拟环境，依赖全部自动就位）
 
 ### 安装 uv
 
@@ -46,9 +80,9 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 uv sync
 ```
 
-`uv sync` 会根据 `pyproject.toml` + `uv.lock` 自动创建 `.venv`、安装锁定版本的依赖（Python、PyQt6、pydantic 等全部自动就位）。**不需要手动激活虚拟环境，不需要单独安装 PyQt 或 Qt**——`uv run` 会自动使用项目环境。
+`uv sync` 会根据 `pyproject.toml` + `uv.lock` 自动创建 `.venv` 并安装锁定版本的依赖（PyQt6、pydantic 等）。**不需要手动激活虚拟环境，也不需要单独安装 Qt**——`uv run` 会自动使用项目环境。
 
-### 运行程序
+### 运行
 
 ```powershell
 uv run python -m paperlingo
@@ -63,8 +97,7 @@ uv run pytest
 ### 代码检查
 
 ```powershell
-uv run ruff check .
-uv run ruff format --check .
+uv run ruff check src tests
 ```
 
 ### 打包
@@ -73,42 +106,41 @@ uv run ruff format --check .
 .\scripts\build.ps1
 ```
 
-产物：`dist\PaperLingo\PaperLingo.exe`（免安装，双击即用；不需要 Python / Qt / uv）。
+产物：`dist\PaperLingo\PaperLingo.exe`（免安装，双击即用，不需要 Python / Qt / uv）。
 
-## 目录结构
+## Prompt / JSON 工作流说明
 
-```text
-src/paperlingo/
-├─ app.py               # 应用启动
-├─ domain/              # 领域模型（AI Schema、学习模型、论文信息）
-├─ prompt/              # Prompt 模板（版本化）/ Profile / 编译器
-├─ parser/              # AI Response 解析与有限修复
-├─ database/            # SQLite（迁移、参数化查询的仓库层）
-├─ learning/            # 复习调度器（可替换 FSRS）
-├─ services/            # 剪贴板、设置、草稿
-└─ ui/                  # 主窗口、页面、组件、主题
-tests/                  # pytest（通过 uv 运行）
-scripts/build.ps1       # 打包脚本
-```
+1. PaperLingo 生成给 AI 的提示词是**纯英文指令**，其中明确要求 AI：所有解释字段使用简体中文、JSON 属性名保持英文、引用原文时逐字保留英文片段。
+2. AI 只返回结构化 JSON（当前 `schema_version = "1.0"`，定义见 `src/paperlingo/domain/analysis.py` 的 `PaperAnalysis`）。
+3. 程序**绝不渲染 AI 返回的 HTML / CSS / Markdown**——所有展示由 PaperLingo 自己的组件完成，AI 文本一律按纯文本处理。
+4. 解析失败时，"修复提示词"会让 AI 只修复 JSON 语法、不得重新分析或改动语义；其中的中文载荷以 ASCII 转义形式保留。
+5. 原始 AI 返回内容永久保存在数据库中，历史记录可随时回看。
 
-## LLM Response Protocol
+## 数据存储位置（便携式设计）
 
-AI 只返回结构化 JSON（当前 `schema_version = "1.0"`，见 `src/paperlingo/domain/analysis.py` 中的 `PaperAnalysis`）。程序绝不渲染 AI 返回的 HTML/CSS/Markdown——所有展示由 PaperLingo 自己的组件完成。原始 AI Response 永久保存在数据库中，可随时回看。
+数据始终跟随程序本身：
 
-Prompt 模板版本：`paper_analysis_v1`（见 `src/paperlingo/prompt/templates.py`）。
+- **打包版**：`paperlingo.db` 创建在 `PaperLingo.exe` 同目录（首次运行自动创建），整个 `dist\PaperLingo\` 目录拷到哪里都能用
+- **开发环境**：数据库固定在项目根目录，位置可预测
+- 草稿、设置、知识库、复习记录全部在这一个 SQLite 数据库里，没有额外的数据文件
+- 若 exe 所在目录不可写，程序会明确报错（含数据库路径）并退出，**不会**悄悄换地方存数据
 
-## 数据存储位置
+隐私说明：所有数据只存在本地，程序不联网、不上传任何内容；联网检索只发生在你自己与 Web AI 的对话框里。
 
-- 数据库：`%APPDATA%\PaperLingo\paperlingo.db`
-- 草稿：`%APPDATA%\PaperLingo\draft.json`
+## 当前限制
 
-## License 注意事项
+- 需要手动复制粘贴，两次剪贴板操作是设计核心，不是缺陷
+- 分析质量取决于你所用的 Web AI 模型
+- 只支持 Windows（理论上跨平台，但未做适配验证）
+- 复习调度为简化 SM-2 风格，非完整 FSRS 算法
 
-本项目代码以 MIT 许可发布。**PyQt6 采用 GPL v3 / 商业双许可**：个人使用与配合本项目开源分发没有问题；若你闭源分发基于 PyQt6 的程序，需要遵守 GPL v3 或向 [Qt 公司](https://www.qt.io/licensing/)购买商业许可。
+## 路线图
 
-## Roadmap
-
-- [ ] 一键直连 OpenAI / Anthropic / Gemini / 自定义 API（架构已预留 Provider 层）
-- [ ] FSRS 正式接入（`Scheduler` 接口已抽象）
-- [ ] PDF 拖入自动取句
+- [ ] 复习调度升级为 FSRS（`Scheduler` 接口已抽象）
 - [ ] 导入 / 导出 Anki 卡组
+- [ ] 更细粒度的学习画像与薄弱点分析
+- [ ] macOS / Linux 适配验证
+
+## License
+
+本项目代码以 MIT 许可发布。**注意：PyQt6 采用 GPL v3 / 商业双许可**——个人使用与随本项目以 GPL 兼容方式分发没有问题；若你以闭源方式分发基于 PyQt6 打包的程序，需要遵守 GPL v3，或向 [Qt 公司](https://www.qt.io/licensing/)购买商业许可。本 README 不构成法律意见，分发前请自行确认许可要求。

@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: quality
+    runs-on: windows-latest
+    env:
+      QT_QPA_PLATFORM: offscreen
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --frozen
+
+      - name: Lint (ruff)
+        run: uv run ruff check src tests
+
+      - name: Test (pytest)
+        run: uv run pytest
+
+  windows-package:
+    name: windows-package
+    needs: quality
+    runs-on: windows-latest
+    env:
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --frozen
+
+      - name: Lint and test
+        run: |
+          uv run ruff check src tests
+          uv run pytest
+
+      - name: Build with PyInstaller
+        run: uv run pyinstaller --noconfirm paperlingo.spec
+
+      - name: Verify packaged executable exists
+        run: |
+          if (-not (Test-Path "dist/PaperLingo/PaperLingo.exe")) {
+            throw "dist/PaperLingo/PaperLingo.exe was not produced"
+          }
+          Get-Item "dist/PaperLingo/PaperLingo.exe" | Format-List Name,Length
+
+      - name: Smoke launch packaged exe
+        run: |
+          $p = Start-Process -FilePath (Resolve-Path "dist/PaperLingo/PaperLingo.exe") -PassThru -WindowStyle Hidden
+          Start-Sleep -Seconds 6
+          if ($p.HasExited -and $p.ExitCode -ne 0) {
+            throw "packaged exe exited immediately with code $($p.ExitCode)"
+          }
+          if (-not $p.HasExited) {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            Write-Host "packaged exe launched successfully"
+          }
+
+      - name: Upload packaged app
+        uses: actions/upload-artifact@v4
+        with:
+          name: PaperLingo-windows
+          path: dist/PaperLingo/
+          retention-days: 7

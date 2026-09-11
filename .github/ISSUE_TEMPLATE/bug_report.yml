@@ -1,0 +1,55 @@
+name: Bug report
+description: Report a problem in PaperLingo
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. If the bug involves AI response
+        parsing, HTML rendering, URL handling, or file/database handling, it is
+        security relevant (see SECURITY.md).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open PaperLingo
+        2. Paste English text in the reading page
+        3. Click ...
+    validations:
+      required: true
+  - type: textarea
+    id: ai-output
+    attributes:
+      label: Relevant AI output (if any)
+      description: Paste the AI JSON response or the parse error message. Remove any private text.
+  - type: input
+    id: version
+    attributes:
+      label: Version / build
+      description: Version from Settings, or commit hash
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Reading workflow (input / prompt / paste)
+        - Result view (structure / grammar / vocabulary ...)
+        - Knowledge base
+        - Review
+        - History
+        - Settings / theme
+        - Database / portability
+        - Packaging / build
+        - Other
+    validations:
+      required: true

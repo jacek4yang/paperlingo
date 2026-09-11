@@ -1,0 +1,28 @@
+name: Feature request
+description: Suggest an idea for PaperLingo
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Note: v0.1.0 deliberately excludes direct model API integration, browser
+        automation, PDF reading, OCR, cloud sync, and login. Feature requests
+        conflicting with the project mission or scope may be declined.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: What should be better or easier?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would you like to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
